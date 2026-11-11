@@ -20,13 +20,6 @@ developer's guidance on how to answer, from an
 from collections.abc import Callable, Sequence
 
 from emma.speech.expression.expression import CORE_DELIVERY, CORE_SOUNDS, NEUTRAL_DELIVERY, SLOW_DELIVERY, ExpressionCapabilities, ExpressionTerm
-    CORE_DELIVERY,
-    CORE_SOUNDS,
-    NEUTRAL_DELIVERY,
-    SLOW_DELIVERY,
-    ExpressionCapabilities,
-    ExpressionTerm,
-)
 from emma.speech.expression.perception import PerceptionCapabilities, PerceptionTerm
 from emma.speech.expression.policy import ExpressionGuidance, ExpressionPolicy
 

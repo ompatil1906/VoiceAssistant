@@ -5,11 +5,6 @@
 """User mute strategy that mutes the user while a function call is executing."""
 
 from emma.runtime.frames import Frame, FunctionCallCancelFrame, FunctionCallResultFrame, FunctionCallsStartedFrame
-    Frame,
-    FunctionCallCancelFrame,
-    FunctionCallResultFrame,
-    FunctionCallsStartedFrame,
-)
 from emma.turns.user_mute.base_user_mute_strategy import BaseUserMuteStrategy
 
 

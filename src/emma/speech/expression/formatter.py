@@ -70,13 +70,6 @@ from loguru import logger
 
 from emma.speech.adapters.base_expression_adapter import BaseExpressionAdapter
 from emma.speech.expression.expression import EMPHASIS_DELIVERY, NEUTRAL_DELIVERY, DeliveryScope, ExpressionCapabilities, ExpressionDelivery, ExpressionSound
-    EMPHASIS_DELIVERY,
-    NEUTRAL_DELIVERY,
-    DeliveryScope,
-    ExpressionCapabilities,
-    ExpressionDelivery,
-    ExpressionSound,
-)
 from emma.runtime.frames import TextType
 from emma.support.string import SENTENCE_ENDING_PUNCTUATION, StartEndTags
 

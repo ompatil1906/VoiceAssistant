@@ -27,12 +27,6 @@ from loguru import logger
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from emma.runtime.frames import CancelFrame, EndFrame, Frame, InterimTranscriptionFrame, TranscriptionFrame
-    CancelFrame,
-    EndFrame,
-    Frame,
-    InterimTranscriptionFrame,
-    TranscriptionFrame,
-)
 from emma.runtime.processor import FrameProcessorSetup
 from emma.speech.settings import STTSettings
 from emma.speech.stt.latency import GOOGLE_TTFS_P99

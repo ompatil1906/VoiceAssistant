@@ -19,12 +19,6 @@ from loguru import logger
 
 from emma.runtime.frames import Frame
 from emma.observability.observers.base_observer import BaseObserver, FrameProcessed, FramePushed, ProcessorSetUp, StartupWarmup
-    BaseObserver,
-    FrameProcessed,
-    FramePushed,
-    ProcessorSetUp,
-    StartupWarmup,
-)
 from emma.support.asyncio.task_manager import BaseTaskManager
 from emma.support.deprecation import deprecated
 

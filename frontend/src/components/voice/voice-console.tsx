@@ -64,7 +64,7 @@ const STATE_COPY: Record<
   },
   listening: {
     label: "Listening",
-    detail: "EMMA is hearing the caller. Speech stays on this device until a live gateway is chosen.",
+    detail: "The microphone is live. EMMA is transcribing the call and will reply when the caller finishes.",
     icon: <Ear className="size-3.5" />,
     tone: "text-emerald-200",
   },
@@ -667,8 +667,9 @@ function SessionSettings({
             Session settings
           </DialogTitle>
           <DialogDescription className="text-white/42">
-            The demo needs no setup. A live session streams your microphone to
-            an EMMA gateway over WebSocket.
+            The demo needs no setup. A live session joins an EMMA LiveKit room,
+            where the agent runs transcription, the clinic tools and speech
+            synthesis.
           </DialogDescription>
         </DialogHeader>
 
@@ -678,7 +679,7 @@ function SessionSettings({
               htmlFor="gateway-url"
               className="text-[11px] font-medium tracking-[0.04em] text-white/60"
             >
-              Gateway WebSocket URL
+              Fallback gateway WebSocket URL
             </Label>
             <Input
               id="gateway-url"
@@ -689,9 +690,9 @@ function SessionSettings({
               className="h-10 border-white/10 bg-white/[0.03] font-mono text-[11px] text-white/80 placeholder:text-white/22"
             />
             <p className="text-[10.5px] leading-relaxed text-white/32">
-              Use the EMMA gateway&apos;s <code>/ws/exotel</code> endpoint. The
-              console adds <code>sample-rate=16000</code> and{" "}
-              <code>control-events=1</code> automatically.
+              Only used when <code>NEXT_PUBLIC_VOICE_TRANSPORT=websocket</code>.
+              The default live path is a LiveKit room, and the token endpoint is{" "}
+              <code>/api/voice/token</code>.
             </p>
           </div>
 

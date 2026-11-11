@@ -1,8 +1,28 @@
-#
-# Copyright (c) 2024-2026, Daily
+ 
 # Copyright (c) 2026, QuantumLoopAI
-#
-# SPDX-License-Identifier: BSD 2-Clause License
-# Inherited from an upstream BSD 2-Clause licensed voice framework and
-# modified for EMMA Receptionist by QuantumLoopAI.
-#
+# Modified for EMMA Receptionist by QuantumLoopAI.
+
+"""RTVI (Real-Time Voice Interface) protocol implementation for EMMA."""
+
+from emma.transports.rtvi.frames import RTVIClientMessageFrame, RTVISendTextFrame, RTVIServerMessageFrame, RTVIServerResponseFrame, RTVIUICancelJobGroupFrame, RTVIUICommandFrame, RTVIUIEventFrame, RTVIUIJobGroupFrame, RTVIUISnapshotFrame
+from emma.transports.rtvi.models import BotOutputTransformResult, SpokenProgressData
+from emma.transports.rtvi.observer import RTVIFunctionCallReportLevel, RTVIObserver, RTVIObserverParams
+from emma.transports.rtvi.processor import RTVIProcessor
+
+__all__ = [
+    "BotOutputTransformResult",
+    "SpokenProgressData",
+    "RTVIClientMessageFrame",
+    "RTVIFunctionCallReportLevel",
+    "RTVIObserver",
+    "RTVIObserverParams",
+    "RTVIProcessor",
+    "RTVISendTextFrame",
+    "RTVIServerMessageFrame",
+    "RTVIServerResponseFrame",
+    "RTVIUICancelJobGroupFrame",
+    "RTVIUICommandFrame",
+    "RTVIUIEventFrame",
+    "RTVIUISnapshotFrame",
+    "RTVIUIJobGroupFrame",
+]

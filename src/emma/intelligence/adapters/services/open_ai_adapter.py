@@ -17,13 +17,6 @@ from openai.types.chat import (
 from emma.intelligence.adapters.base_llm_adapter import BaseLLMAdapter, LLMContextConversionError
 from emma.intelligence.adapters.schemas.tools_schema import AdapterType, ToolsSchema
 from emma.intelligence.aggregators.llm_context import LLMContext, LLMContextMessage, LLMContextToolChoice, LLMSpecificMessage, LLMStandardMessage, NotGiven
-    LLMContext,
-    LLMContextMessage,
-    LLMContextToolChoice,
-    LLMSpecificMessage,
-    LLMStandardMessage,
-    NotGiven,
-)
 from emma.support.types import is_given
 
 _T = TypeVar("_T")

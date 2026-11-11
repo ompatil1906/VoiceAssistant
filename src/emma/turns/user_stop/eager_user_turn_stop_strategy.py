@@ -9,13 +9,6 @@ import asyncio
 from loguru import logger
 
 from emma.runtime.frames import EagerTranscriptionFrame, Frame, ProposedUserStartedSpeakingFrame, UserStartedSpeakingFrame, UserTurnResponseCancelFrame, VADUserStartedSpeakingFrame
-    EagerTranscriptionFrame,
-    Frame,
-    ProposedUserStartedSpeakingFrame,
-    UserStartedSpeakingFrame,
-    UserTurnResponseCancelFrame,
-    VADUserStartedSpeakingFrame,
-)
 from emma.turns.types import UserTurnSpeculation
 from emma.turns.user_stop.eager_match_policy import EagerMatchPolicy, NormalizedMatch
 from emma.turns.user_stop.external_user_turn_stop_strategy import ExternalUserTurnStopStrategy

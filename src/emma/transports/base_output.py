@@ -23,32 +23,6 @@ from emma.audio.dtmf.utils import load_dtmf_audio
 from emma.audio.mixers.base_audio_mixer import BaseAudioMixer
 from emma.audio.utils import create_stream_resampler, is_silence, scale_audio
 from emma.runtime.frames import AssistantImageRawFrame, BotSpeakingFrame, BotStartedSpeakingFrame, BotStoppedSpeakingFrame, CancelFrame, EndFrame, FilterControlFrame, Frame, InterruptionFrame, MixerControlFrame, OutputAudioRawFrame, OutputDTMFFrame, OutputDTMFUrgentFrame, OutputImageRawFrame, OutputTransportMessageFrame, OutputTransportMessageUrgentFrame, OutputTransportReadyFrame, SpeechOutputAudioRawFrame, SpriteFrame, StartFrame, SystemFrame, TTSAudioRawFrame, TTSStoppedFrame, VolumeFrame, VolumeGainFrame
-    AssistantImageRawFrame,
-    BotSpeakingFrame,
-    BotStartedSpeakingFrame,
-    BotStoppedSpeakingFrame,
-    CancelFrame,
-    EndFrame,
-    FilterControlFrame,
-    Frame,
-    InterruptionFrame,
-    MixerControlFrame,
-    OutputAudioRawFrame,
-    OutputDTMFFrame,
-    OutputDTMFUrgentFrame,
-    OutputImageRawFrame,
-    OutputTransportMessageFrame,
-    OutputTransportMessageUrgentFrame,
-    OutputTransportReadyFrame,
-    SpeechOutputAudioRawFrame,
-    SpriteFrame,
-    StartFrame,
-    SystemFrame,
-    TTSAudioRawFrame,
-    TTSStoppedFrame,
-    VolumeFrame,
-    VolumeGainFrame,
-)
 from emma.runtime.pipeline.capabilities import BotCapabilities
 from emma.runtime.processor import FrameDirection, FrameProcessor, FrameProcessorSetup
 from emma.transports.base_transport import TransportParams

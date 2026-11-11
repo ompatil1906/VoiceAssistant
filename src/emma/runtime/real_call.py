@@ -43,7 +43,10 @@ from emma.intelligence.aggregators.llm_response_universal import (
     LLMContextAggregatorPair,
     LLMUserAggregatorParams,
 )
-from emma.intelligence.flows.manager import FlowManager
+try:
+    from emma.intelligence.flows.manager import FlowManager
+except Exception:
+    FlowManager = Any  # type: ignore
 from emma.intelligence.llm.base import FunctionCallParams, LLMService
 from emma.observability.observers.loggers.metrics_log_observer import MetricsLogObserver
 from emma.observability.observers.user_bot_latency_observer import UserBotLatencyObserver
@@ -55,7 +58,10 @@ from emma.services.prescription_service import (
     handle_prescription_request,
     verify_patient_id,
 )
-from emma.speech.expression.tone_tagger.processor import ToneTaggerProcessor
+try:
+    from emma.speech.expression.tone_tagger.processor import ToneTaggerProcessor
+except Exception:
+    ToneTaggerProcessor = None  # type: ignore
 from emma.speech.turn_detection.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
 from emma.speech.vad.silero import SileroVADAnalyzer
 from emma.storage.call_records_excel import CallIntakeRecord, record_call_to_excel
@@ -425,7 +431,7 @@ def build_real_call_pipeline(
         pipeline_processors.append(llm)
 
     # Prosody & Tone Tagger
-    if enable_tone_tagging:
+    if enable_tone_tagging and ToneTaggerProcessor is not None:
         try:
             pipeline_processors.append(ToneTaggerProcessor())
         except Exception as e:

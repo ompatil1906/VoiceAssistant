@@ -21,11 +21,6 @@ from loguru import logger
 from emma.intelligence.adapters.schemas.function_schema import FunctionSchema
 from emma.intelligence.adapters.schemas.tools_schema import ToolsSchema
 from emma.intelligence.aggregators.llm_context import LLMContext, LLMContextMessage, LLMSpecificMessage, NotGiven
-    LLMContext,
-    LLMContextMessage,
-    LLMSpecificMessage,
-    NotGiven,
-)
 from emma.support.deprecation import warn_deprecated
 from emma.support.file_resolver import FileResolver
 from emma.support.security.ssrf import UrlReachability

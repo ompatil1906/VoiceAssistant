@@ -23,31 +23,12 @@ from pydantic import BaseModel, Field
 
 from emma.intelligence.adapters.base_llm_adapter import LLMContextConversionError
 from emma.intelligence.adapters.services.gemini_adapter import GeminiLLMAdapter, gemini_thought_signature_message
-    GeminiLLMAdapter,
-    gemini_thought_signature_message,
-)
 from emma.runtime.frames import AssistantImageRawFrame, Frame, LLMContextFrame, LLMFullResponseEndFrame, LLMFullResponseStartFrame, LLMMessagesAppendFrame, LLMThoughtEndFrame, LLMThoughtStartFrame, LLMThoughtTextFrame
-    AssistantImageRawFrame,
-    Frame,
-    LLMContextFrame,
-    LLMFullResponseEndFrame,
-    LLMFullResponseStartFrame,
-    LLMMessagesAppendFrame,
-    LLMThoughtEndFrame,
-    LLMThoughtStartFrame,
-    LLMThoughtTextFrame,
-)
 from emma.observability.metrics.metrics import LLMTokenUsage
 from emma.intelligence.aggregators.llm_context import LLMContext
 from emma.runtime.processor import FrameDirection
 from emma.intelligence.llm.gemini_frames import LLMSearchResponseFrame
 from emma.intelligence.llm.gemini_utils import _MODELS_SUPPORTING_THINKING_LEVEL, _model_name, _thinking_default, stream_with_retry, update_google_client_http_options
-    _MODELS_SUPPORTING_THINKING_LEVEL,
-    _model_name,
-    _thinking_default,
-    stream_with_retry,
-    update_google_client_http_options,
-)
 from emma.intelligence.llm.base import FunctionCallFromLLM, LLMService
 from emma.speech.settings import LLMSettings
 from emma.support.deprecation import deprecated

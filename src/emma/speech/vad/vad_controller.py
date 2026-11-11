@@ -15,11 +15,6 @@ from loguru import logger
 
 from emma.speech.vad.vad_analyzer import VADAnalyzer, VADState
 from emma.runtime.frames import Frame, InputAudioRawFrame, SpeechControlParamsFrame, VADParamsUpdateFrame
-    Frame,
-    InputAudioRawFrame,
-    SpeechControlParamsFrame,
-    VADParamsUpdateFrame,
-)
 from emma.runtime.processor import FrameDirection, FrameProcessorSetup
 from emma.support.asyncio.task_manager import BaseTaskManager
 from emma.support.base_object import BaseObject

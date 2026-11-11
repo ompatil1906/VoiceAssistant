@@ -26,8 +26,6 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from emma.audio.dtmf.types import KeypadEntry
 from emma.runtime.frames import TextType
-    TextType,
-)
 from emma.runtime.pipeline.capabilities import BotCapabilities
 from emma.support.deprecation import deprecated
 

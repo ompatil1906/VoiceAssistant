@@ -9,12 +9,6 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 
 from emma.runtime.frames import EndFrame, Frame, HeartbeatFrame, StartFrame, SystemFrame
-    EndFrame,
-    Frame,
-    HeartbeatFrame,
-    StartFrame,
-    SystemFrame,
-)
 from emma.observability.observers.base_observer import BaseObserver, FramePushed
 from emma.runtime.pipeline.pipeline import Pipeline
 from emma.runtime.pipeline.worker import PipelineParams, PipelineWorker

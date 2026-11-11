@@ -7,8 +7,6 @@ from emma.turns.user_mute.base_user_mute_strategy import BaseUserMuteStrategy
 from emma.turns.user_mute.first_speech_user_mute_strategy import FirstSpeechUserMuteStrategy
 from emma.turns.user_mute.function_call_user_mute_strategy import FunctionCallUserMuteStrategy
 from emma.turns.user_mute.mute_until_first_bot_complete_user_mute_strategy import MuteUntilFirstBotCompleteUserMuteStrategy
-    MuteUntilFirstBotCompleteUserMuteStrategy,
-)
 
 __all__ = [
     "AlwaysUserMuteStrategy",

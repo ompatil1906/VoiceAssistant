@@ -17,7 +17,7 @@ from emma.support.base_object import BaseObject
 from emma.support.deprecation import deprecated
 
 if TYPE_CHECKING:
-from emma.runtime.processor import FrameDirection, FrameProcessor
+    from emma.runtime.processor import FrameDirection, FrameProcessor
 
 
 @dataclass

@@ -25,8 +25,8 @@ from emma.runtime.registry.types import WorkerRegistryEntry
 from emma.support.utils import obj_count, obj_id
 
 if TYPE_CHECKING:
-from emma.runtime.pipeline.job_context import JobStatus
-from emma.runtime.workers.base_worker import BaseWorker
+    from emma.runtime.pipeline.job_context import JobStatus
+    from emma.runtime.workers.base_worker import BaseWorker
 
 # ---------------------------------------------------------------------------
 # Base types and mixins

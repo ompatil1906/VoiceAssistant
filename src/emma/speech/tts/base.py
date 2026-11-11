@@ -20,41 +20,8 @@ from websockets.protocol import State
 from emma.speech.adapters.base_expression_adapter import BaseExpressionAdapter
 from emma.audio.utils import create_stream_resampler
 from emma.speech.expression.formatter import EXPRESSION_TAG_PATTERN, EXPRESSION_TAGS, ExpressionFormatter, Segment
-    EXPRESSION_TAG_PATTERN,
-    EXPRESSION_TAGS,
-    ExpressionFormatter,
-    Segment,
-)
 from emma.speech.expression.spoken import SpokenExpression
 from emma.runtime.frames import AggregatedTextFrame, AggregatedTextProgressFrame, BotStartedSpeakingFrame, BotStoppedSpeakingFrame, CancelFrame, EagerTranscriptionFrame, EndFrame, ErrorFrame, Frame, InterimTranscriptionFrame, InterruptionFrame, LLMAssistantPushAggregationFrame, LLMFullResponseEndFrame, LLMFullResponseStartFrame, LLMTextFrame, StartFrame, SystemFrame, TextFrame, TextType, TranscriptionFrame, TTSAudioRawFrame, TTSMetadataFrame, TTSSpeakFrame, TTSStartedFrame, TTSStoppedFrame, TTSTextFrame, TTSUpdateSettingsFrame
-    AggregatedTextFrame,
-    AggregatedTextProgressFrame,
-    BotStartedSpeakingFrame,
-    BotStoppedSpeakingFrame,
-    CancelFrame,
-    EagerTranscriptionFrame,
-    EndFrame,
-    ErrorFrame,
-    Frame,
-    InterimTranscriptionFrame,
-    InterruptionFrame,
-    LLMAssistantPushAggregationFrame,
-    LLMFullResponseEndFrame,
-    LLMFullResponseStartFrame,
-    LLMTextFrame,
-    StartFrame,
-    SystemFrame,
-    TextFrame,
-    TextType,
-    TranscriptionFrame,
-    TTSAudioRawFrame,
-    TTSMetadataFrame,
-    TTSSpeakFrame,
-    TTSStartedFrame,
-    TTSStoppedFrame,
-    TTSTextFrame,
-    TTSUpdateSettingsFrame,
-)
 from emma.runtime.processor import FrameDirection, FrameProcessorSetup
 from emma.speech.ai_service import AIService
 from emma.speech.settings import TTSSettings
@@ -72,9 +39,6 @@ from emma.support.text.pattern_pair_aggregator import PatternMatch
 from emma.support.text.simple_text_aggregator import SimpleTextAggregator
 from emma.support.text.skip_tags_aggregator import SkipTagsAggregator
 from emma.support.text.transforms.pronunciations import PronunciationTransform, pronunciation_transform
-    PronunciationTransform,
-    pronunciation_transform,
-)
 from emma.support.text.transforms.text_transform import TextTransform
 from emma.support.text.word_timestamp_utils import merge_punct_tokens
 from emma.support.types import is_given

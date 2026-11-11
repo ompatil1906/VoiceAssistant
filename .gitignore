@@ -78,6 +78,9 @@ whisker_setup.py
 
 # MoQ transport
 *.pem
+# Session files
+*.ses
+:memory:.ses
 # Generated call records and prescriptions
 data/*.xlsx
 data/*.csv

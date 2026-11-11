@@ -12,10 +12,6 @@ as a unit regardless of internal punctuation.
 from collections.abc import AsyncIterator, Sequence
 
 from emma.support.string import StartEndTags, longest_trailing_partial_match, parse_start_end_tags
-    StartEndTags,
-    longest_trailing_partial_match,
-    parse_start_end_tags,
-)
 from emma.support.text.base_text_aggregator import Aggregation, TextType
 from emma.support.text.simple_text_aggregator import SimpleTextAggregator
 

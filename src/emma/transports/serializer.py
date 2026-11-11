@@ -12,11 +12,6 @@ from pydantic import BaseModel, model_validator
 import emma.transports.rtvi.models as RTVI
 from emma.audio.utils import create_stream_resampler
 from emma.runtime.frames import AudioRawFrame, Frame, OutputTransportMessageFrame, OutputTransportMessageUrgentFrame
-    AudioRawFrame,
-    Frame,
-    OutputTransportMessageFrame,
-    OutputTransportMessageUrgentFrame,
-)
 from emma.runtime.processor import FrameProcessorSetup
 from emma.support.base_object import BaseObject
 from emma.support.deprecation import warn_deprecated

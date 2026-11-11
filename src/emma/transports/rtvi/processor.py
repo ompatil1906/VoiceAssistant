@@ -15,36 +15,10 @@ from pydantic import BaseModel, ValidationError
 import emma.transports.rtvi.models as RTVI
 from emma import version as emma_version
 from emma.runtime.frames import CancelFrame, EndFrame, EndWorkerFrame, ErrorFrame, Frame, FunctionCallResultFrame, InputAudioRawFrame, InputDTMFFrame, InputTransportMessageFrame, InputTransportStartAudioStreamingFrame, LLMConfigureOutputFrame, LLMMessagesAppendFrame, OutputTransportMessageUrgentFrame, StartFrame, SystemFrame, UserFileRawFrame, UserImageRawFrame
-    CancelFrame,
-    EndFrame,
-    EndWorkerFrame,
-    ErrorFrame,
-    Frame,
-    FunctionCallResultFrame,
-    InputAudioRawFrame,
-    InputDTMFFrame,
-    InputTransportMessageFrame,
-    InputTransportStartAudioStreamingFrame,
-    LLMConfigureOutputFrame,
-    LLMMessagesAppendFrame,
-    OutputTransportMessageUrgentFrame,
-    StartFrame,
-    SystemFrame,
-    UserFileRawFrame,
-    UserImageRawFrame,
-)
 from emma.runtime.processor import FrameDirection, FrameProcessor
 from emma.transports.rtvi.frames import RTVIClientMessageFrame, RTVISendTextFrame, RTVIUICancelJobGroupFrame, RTVIUIEventFrame, RTVIUISnapshotFrame
-    RTVIClientMessageFrame,
-    RTVISendTextFrame,
-    RTVIUICancelJobGroupFrame,
-    RTVIUIEventFrame,
-    RTVIUISnapshotFrame,
-)
 from emma.transports.rtvi.observer import RTVIObserver, RTVIObserverParams
 from emma.intelligence.llm.base import FunctionCallParams
-    FunctionCallParams,  # TODO(aleix): we shouldn't import `services` from `processors`
-)
 from emma.transports.base_transport import BaseTransport
 from emma.support.deprecation import warn_deprecated
 

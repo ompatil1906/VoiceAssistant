@@ -12,29 +12,13 @@ from typing import TYPE_CHECKING
 from loguru import logger
 
 from emma.runtime.frames import Frame, InterruptionFrame, LLMContextSummaryRequestFrame, LLMContextSummaryResultFrame, LLMFullResponseStartFrame, LLMSummarizeContextFrame
-    Frame,
-    InterruptionFrame,
-    LLMContextSummaryRequestFrame,
-    LLMContextSummaryResultFrame,
-    LLMFullResponseStartFrame,
-    LLMSummarizeContextFrame,
-)
 from emma.intelligence.aggregators.llm_context import LLMContext, LLMContextMessage, LLMSpecificMessage
-    LLMContext,
-    LLMContextMessage,
-    LLMSpecificMessage,
-)
 from emma.runtime.processor import FrameProcessorSetup
 from emma.support.base_object import BaseObject
 from emma.support.context.llm_context_summarization import DEFAULT_SUMMARIZATION_TIMEOUT, LLMAutoContextSummarizationConfig, LLMContextSummarizationUtil, LLMContextSummaryConfig
-    DEFAULT_SUMMARIZATION_TIMEOUT,
-    LLMAutoContextSummarizationConfig,
-    LLMContextSummarizationUtil,
-    LLMContextSummaryConfig,
-)
 
 if TYPE_CHECKING:
-from emma.intelligence.llm.base import LLMService
+    from emma.intelligence.llm.base import LLMService
 
 
 @dataclass

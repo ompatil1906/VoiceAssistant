@@ -7,10 +7,6 @@
 from loguru import logger
 
 from emma.runtime.frames import Frame, ProposedUserStartedSpeakingFrame, UserStartedSpeakingFrame
-    Frame,
-    ProposedUserStartedSpeakingFrame,
-    UserStartedSpeakingFrame,
-)
 from emma.turns.user_start.base_user_turn_start_strategy import BaseUserTurnStartStrategy
 
 

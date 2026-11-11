@@ -8,16 +8,6 @@ from typing import Any
 
 from emma.speech.adapters.base_expression_adapter import BaseExpressionAdapter, delivery_tags
 from emma.speech.expression.expression import EMPHASIS_DELIVERY, FAST_DELIVERY, SLOW_DELIVERY, SPEED_DELIVERY, DeliveryScope, ExpressionCapabilities, ExpressionDelivery, ExpressionSound, ExpressionTerm
-    EMPHASIS_DELIVERY,
-    FAST_DELIVERY,
-    SLOW_DELIVERY,
-    SPEED_DELIVERY,
-    DeliveryScope,
-    ExpressionCapabilities,
-    ExpressionDelivery,
-    ExpressionSound,
-    ExpressionTerm,
-)
 
 # How each speed delivery is described in a request's style.
 _SPEED_STYLES = {SLOW_DELIVERY: "speaking slowly", FAST_DELIVERY: "speaking quickly"}

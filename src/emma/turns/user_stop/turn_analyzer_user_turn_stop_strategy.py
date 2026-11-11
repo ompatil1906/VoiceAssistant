@@ -12,17 +12,6 @@ from loguru import logger
 from emma.speech.turn_detection.base_turn_analyzer import BaseTurnAnalyzer, EndOfTurnState
 from emma.speech.vad.vad_analyzer import VAD_STOP_SECS
 from emma.runtime.frames import Frame, InputAudioRawFrame, InterimTranscriptionFrame, MetricsFrame, SpeechControlParamsFrame, StartFrame, STTMetadataFrame, TranscriptionFrame, VADUserStartedSpeakingFrame, VADUserStoppedSpeakingFrame
-    Frame,
-    InputAudioRawFrame,
-    InterimTranscriptionFrame,
-    MetricsFrame,
-    SpeechControlParamsFrame,
-    StartFrame,
-    STTMetadataFrame,
-    TranscriptionFrame,
-    VADUserStartedSpeakingFrame,
-    VADUserStoppedSpeakingFrame,
-)
 from emma.observability.metrics.metrics import MetricsData
 from emma.runtime.processor import FrameProcessorSetup
 from emma.turns.user_stop.base_user_turn_stop_strategy import BaseUserTurnStopStrategy

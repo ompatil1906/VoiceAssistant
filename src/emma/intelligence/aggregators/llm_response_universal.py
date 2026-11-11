@@ -23,81 +23,10 @@ from emma.speech.vad.vad_analyzer import VADAnalyzer
 from emma.speech.vad.vad_controller import VADController
 from emma.speech.expression.formatter import strip_expression_tags
 from emma.speech.expression.perception import PerceptionSignal, format_perception, merge_perception
-    PerceptionSignal,
-    format_perception,
-    merge_perception,
-)
 from emma.runtime.frames import AggregatedTextFrame, AssistantImageRawFrame, BotStartedSpeakingFrame, BotStoppedSpeakingFrame, CancelFrame, EagerTranscriptionFrame, EndFrame, ExpressionMetadataFrame, Frame, FunctionCallCancelFrame, FunctionCallInProgressFrame, FunctionCallResultFrame, FunctionCallsStartedFrame, InputAudioRawFrame, InterimTranscriptionFrame, InterruptionFrame, LLMAssistantPushAggregationFrame, LLMContextAssistantTimestampFrame, LLMContextAssistantTurnFrame, LLMContextFrame, LLMContextSummaryRequestFrame, LLMContextUserTurnFrame, LLMFullResponseEndFrame, LLMFullResponseStartFrame, LLMMarkerFrame, LLMMessagesAppendFrame, LLMMessagesTransformFrame, LLMMessagesUpdateFrame, LLMRunFrame, LLMServiceMetadataFrame, LLMSetToolChoiceFrame, LLMSetToolsFrame, LLMThoughtEndFrame, LLMThoughtStartFrame, LLMThoughtTextFrame, ProposedUserStartedSpeakingFrame, ProposedUserStoppedSpeakingFrame, ServiceMetadataFrame, StartFrame, STTMetadataFrame, TextFrame, TranscriptionFrame, TranslationFrame, TTSStartedFrame, TTSTextFrame, UserBackchannelFrame, UserFileRawFrame, UserImageRawFrame, UserMuteStartedFrame, UserMuteStoppedFrame, UserSpeakingFrame, UserStartedSpeakingFrame, UserStoppedSpeakingFrame, UserTurnResponseCancelFrame, VADUserStartedSpeakingFrame, VADUserStoppedSpeakingFrame
-    AggregatedTextFrame,
-    AssistantImageRawFrame,
-    BotStartedSpeakingFrame,
-    BotStoppedSpeakingFrame,
-    CancelFrame,
-    EagerTranscriptionFrame,
-    EndFrame,
-    ExpressionMetadataFrame,
-    Frame,
-    FunctionCallCancelFrame,
-    FunctionCallInProgressFrame,
-    FunctionCallResultFrame,
-    FunctionCallsStartedFrame,
-    InputAudioRawFrame,
-    InterimTranscriptionFrame,
-    InterruptionFrame,
-    LLMAssistantPushAggregationFrame,
-    LLMContextAssistantTimestampFrame,
-    LLMContextAssistantTurnFrame,
-    LLMContextFrame,
-    LLMContextSummaryRequestFrame,
-    LLMContextUserTurnFrame,
-    LLMFullResponseEndFrame,
-    LLMFullResponseStartFrame,
-    LLMMarkerFrame,
-    LLMMessagesAppendFrame,
-    LLMMessagesTransformFrame,
-    LLMMessagesUpdateFrame,
-    LLMRunFrame,
-    LLMServiceMetadataFrame,
-    LLMSetToolChoiceFrame,
-    LLMSetToolsFrame,
-    LLMThoughtEndFrame,
-    LLMThoughtStartFrame,
-    LLMThoughtTextFrame,
-    ProposedUserStartedSpeakingFrame,
-    ProposedUserStoppedSpeakingFrame,
-    ServiceMetadataFrame,
-    StartFrame,
-    STTMetadataFrame,
-    TextFrame,
-    TranscriptionFrame,
-    TranslationFrame,
-    TTSStartedFrame,
-    TTSTextFrame,
-    UserBackchannelFrame,
-    UserFileRawFrame,
-    UserImageRawFrame,
-    UserMuteStartedFrame,
-    UserMuteStoppedFrame,
-    UserSpeakingFrame,
-    UserStartedSpeakingFrame,
-    UserStoppedSpeakingFrame,
-    UserTurnResponseCancelFrame,
-    VADUserStartedSpeakingFrame,
-    VADUserStoppedSpeakingFrame,
-)
 from emma.intelligence.aggregators import async_tool_messages
 from emma.intelligence.aggregators.llm_context import LLMContext, LLMContextMessage, LLMContextToolChoice, LLMSpecificMessage, NotGiven, is_given
-    LLMContext,
-    LLMContextMessage,
-    LLMContextToolChoice,
-    LLMSpecificMessage,
-    NotGiven,
-    is_given,
-)
 from emma.intelligence.aggregators.llm_context_summarizer import LLMContextSummarizer, SummaryAppliedEvent
-    LLMContextSummarizer,
-    SummaryAppliedEvent,
-)
 from emma.runtime.processor import FrameDirection, FrameProcessor, FrameProcessorSetup
 from emma.speech.stt.latency import DEFAULT_TTFS_P99
 from emma.turns.empty_user_turn import EmptyUserTurnConfig
@@ -105,26 +34,11 @@ from emma.turns.types import UserTurnResumedParams, UserTurnSpeculation
 from emma.turns.user_idle_controller import UserIdleController
 from emma.turns.user_mute import BaseUserMuteStrategy
 from emma.turns.user_start import BaseUserTurnStartStrategy, TranscriptionUserTurnStartStrategy, UserTurnStartedParams
-    BaseUserTurnStartStrategy,
-    TranscriptionUserTurnStartStrategy,
-    UserTurnStartedParams,
-)
 from emma.turns.user_stop import BaseUserTurnStopStrategy, UserTurnStoppedParams
-    BaseUserTurnStopStrategy,
-    UserTurnStoppedParams,
-)
 from emma.turns.user_turn_completion_mixin import UserTurnCompletionConfig
 from emma.turns.user_turn_controller import UserTurnController
 from emma.turns.user_turn_strategies import ExternalUserTurnStrategies, FilterIncompleteUserTurnStrategies, UserTurnStrategies, UserTurnStrategiesParams
-    ExternalUserTurnStrategies,
-    FilterIncompleteUserTurnStrategies,
-    UserTurnStrategies,
-    UserTurnStrategiesParams,
-)
 from emma.support.context.llm_context_summarization import LLMAutoContextSummarizationConfig, LLMContextSummarizationConfig
-    LLMAutoContextSummarizationConfig,
-    LLMContextSummarizationConfig,
-)
 from emma.support.deprecation import warn_deprecated
 from emma.support.string import TextPartForConcatenation, concatenate_aggregated_text
 from emma.support.text.base_text_aggregator import TextType
@@ -2776,11 +2690,7 @@ class LLMAssistantAggregator(LLMContextAggregator):
         default markers and any seen on this turn's marker frames are removed,
         so a custom marker set is stripped too.
         """
-from emma.turns.user_turn_completion_mixin import USER_TURN_COMPLETE_MARKER, USER_TURN_INCOMPLETE_LONG_MARKER, USER_TURN_INCOMPLETE_SHORT_MARKER
-            USER_TURN_COMPLETE_MARKER,
-            USER_TURN_INCOMPLETE_LONG_MARKER,
-            USER_TURN_INCOMPLETE_SHORT_MARKER,
-        )
+        from emma.turns.user_turn_completion_mixin import USER_TURN_COMPLETE_MARKER, USER_TURN_INCOMPLETE_LONG_MARKER, USER_TURN_INCOMPLETE_SHORT_MARKER
 
         marker_found = False
         for marker in {

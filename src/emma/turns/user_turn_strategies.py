@@ -14,20 +14,7 @@ from pydantic import BaseModel
 from emma.turns.classifiers.base_classifier import BaseClassifier
 from emma.intelligence.aggregators.llm_context import LLMContext
 from emma.turns.user_start import BaseUserTurnStartStrategy, ExternalUserTurnStartStrategy, TranscriptionUserTurnStartStrategy, VADUserTurnStartStrategy
-    BaseUserTurnStartStrategy,
-    ExternalUserTurnStartStrategy,
-    TranscriptionUserTurnStartStrategy,
-    VADUserTurnStartStrategy,
-)
 from emma.turns.user_stop import BaseUserTurnStopStrategy, ClassifierUserTurnStopStrategy, EagerMatchPolicy, EagerUserTurnStopStrategy, ExternalUserTurnStopStrategy, LLMTurnCompletionUserTurnStopStrategy, TurnAnalyzerUserTurnStopStrategy
-    BaseUserTurnStopStrategy,
-    ClassifierUserTurnStopStrategy,
-    EagerMatchPolicy,
-    EagerUserTurnStopStrategy,
-    ExternalUserTurnStopStrategy,
-    LLMTurnCompletionUserTurnStopStrategy,
-    TurnAnalyzerUserTurnStopStrategy,
-)
 from emma.turns.user_turn_completion_mixin import UserTurnCompletionConfig
 
 _S = TypeVar("_S")
@@ -420,6 +407,6 @@ def default_user_turn_stop_strategies() -> list[BaseUserTurnStopStrategy]:
     Returns ``[TurnAnalyzerUserTurnStopStrategy(LocalSmartTurnAnalyzerV3)]``.
     Useful when building a custom strategy list that extends the defaults.
     """
-from emma.speech.turn_detection.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
+    from emma.speech.turn_detection.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
 
     return [TurnAnalyzerUserTurnStopStrategy(turn_analyzer=LocalSmartTurnAnalyzerV3())]

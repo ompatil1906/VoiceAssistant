@@ -30,46 +30,11 @@ from emma.intelligence.adapters.schemas.direct_function import DirectFunction, D
 from emma.intelligence.adapters.schemas.tools_schema import ToolsSchema
 from emma.speech.expression.expression import ExpressionCapabilities
 from emma.speech.expression.instructions import expression_instructions, expression_policy_warning, perception_turn_completion_instructions
-    expression_instructions,
-    expression_policy_warning,
-    perception_turn_completion_instructions,
-)
 from emma.speech.expression.perception import PerceptionCapabilities
 from emma.speech.expression.policy import ExpressionPolicy
 from emma.runtime.frames import CancelFrame, EndFrame, ErrorFrame, ExpressionMetadataFrame, Frame, FunctionCallCancelFrame, FunctionCallFromLLM, FunctionCallInProgressFrame, FunctionCallResultFrame, FunctionCallResultProperties, FunctionCallsStartedFrame, InterruptionFrame, LLMConfigureOutputFrame, LLMContextFrame, LLMContextSummaryRequestFrame, LLMContextSummaryResultFrame, LLMFullResponseEndFrame, LLMFullResponseStartFrame, LLMServiceMetadataFrame, LLMTextFrame, LLMUpdateSettingsFrame, PerceptionMetadataFrame, StartFrame, TTSMetadataFrame, UserTurnResponseCancelFrame
-    CancelFrame,
-    EndFrame,
-    ErrorFrame,
-    ExpressionMetadataFrame,
-    Frame,
-    FunctionCallCancelFrame,
-    FunctionCallFromLLM,
-    FunctionCallInProgressFrame,
-    FunctionCallResultFrame,
-    FunctionCallResultProperties,
-    FunctionCallsStartedFrame,
-    InterruptionFrame,
-    LLMConfigureOutputFrame,
-    LLMContextFrame,
-    LLMContextSummaryRequestFrame,
-    LLMContextSummaryResultFrame,
-    LLMFullResponseEndFrame,
-    LLMFullResponseStartFrame,
-    LLMServiceMetadataFrame,
-    LLMTextFrame,
-    LLMUpdateSettingsFrame,
-    PerceptionMetadataFrame,
-    StartFrame,
-    TTSMetadataFrame,
-    UserTurnResponseCancelFrame,
-)
 from emma.intelligence.aggregators.async_tool_messages import ASYNC_TOOL_INSTRUCTIONS
 from emma.intelligence.aggregators.llm_context import NOT_GIVEN, LLMContext, LLMSpecificMessage, is_given
-    NOT_GIVEN,
-    LLMContext,
-    LLMSpecificMessage,
-    is_given,
-)
 from emma.runtime.processor import FrameDirection, FrameProcessorSetup
 from emma.speech.ai_service import AIService
 from emma.speech.settings import LLMSettings
@@ -77,15 +42,7 @@ from emma.speech.websocket_service import WebsocketService
 from emma.turns.speculation_gate import SpeculationGate
 from emma.turns.user_turn_completion_mixin import UserTurnCompletionLLMServiceMixin
 from emma.support.async_tool_cancellation import ASYNC_TOOL_CANCELLATION_INSTRUCTIONS, CANCEL_TOOL_PREFIX, build_cancel_tool_schema, cancel_tool_name
-    ASYNC_TOOL_CANCELLATION_INSTRUCTIONS,
-    CANCEL_TOOL_PREFIX,
-    build_cancel_tool_schema,
-    cancel_tool_name,
-)
 from emma.support.context.llm_context_summarization import DEFAULT_SUMMARIZATION_TIMEOUT, LLMContextSummarizationUtil
-    DEFAULT_SUMMARIZATION_TIMEOUT,
-    LLMContextSummarizationUtil,
-)
 from emma.support.deprecation import deprecated, warn_deprecated
 from emma.support.errors import ErrorCategory
 from emma.support.file_resolver import FileResolver
@@ -93,8 +50,8 @@ from emma.support.log_config import _get_llm_context_log_mode, _LLMContextLogMod
 from emma.support.types import assert_given
 
 if TYPE_CHECKING:
-from emma.runtime.pipeline.worker import PipelineWorker
-from emma.runtime.workers.runner import WorkerRunner
+    from emma.runtime.pipeline.worker import PipelineWorker
+    from emma.runtime.workers.runner import WorkerRunner
 
 
 # Type alias for a callable that handles LLM function calls.
@@ -520,7 +477,7 @@ class LLMService(UserTurnCompletionLLMServiceMixin, AIService, Generic[TAdapter]
         if cls.adapter_class is not None:
             return cls.adapter_class
 
-from emma.intelligence.adapters.services.open_ai_adapter import OpenAILLMAdapter
+        from emma.intelligence.adapters.services.open_ai_adapter import OpenAILLMAdapter
 
         return OpenAILLMAdapter
 

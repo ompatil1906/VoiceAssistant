@@ -1,0 +1,16 @@
+{
+  "appointments": [
+    {
+      "reference": "APT-20261113-1500-01",
+      "appointment_date": "2026-11-13",
+      "appointment_time": "15:00",
+      "doctor": "Dr. Jenkins",
+      "reason": "Fever",
+      "first_name": "Om",
+      "last_name": "Patil",
+      "email": "patilom1906@gmail.com",
+      "mobile": "7436083790",
+      "created_at": "2026-11-11T19:50:27"
+    }
+  ]
+}

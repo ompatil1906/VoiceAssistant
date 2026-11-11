@@ -11,18 +11,6 @@ from loguru import logger
 
 from emma.turns.classifiers.base_classifier import BaseClassifier, ChoiceQuestion, ClassifierError
 from emma.runtime.frames import Frame, InterimTranscriptionFrame, MetricsFrame, ProposedUserStartedSpeakingFrame, ProposedUserStoppedSpeakingFrame, STTMetadataFrame, TranscriptionFrame, UserStartedSpeakingFrame, UserStoppedSpeakingFrame, VADUserStartedSpeakingFrame, VADUserStoppedSpeakingFrame
-    Frame,
-    InterimTranscriptionFrame,
-    MetricsFrame,
-    ProposedUserStartedSpeakingFrame,
-    ProposedUserStoppedSpeakingFrame,
-    STTMetadataFrame,
-    TranscriptionFrame,
-    UserStartedSpeakingFrame,
-    UserStoppedSpeakingFrame,
-    VADUserStartedSpeakingFrame,
-    VADUserStoppedSpeakingFrame,
-)
 from emma.observability.metrics.metrics import MetricsData
 from emma.intelligence.aggregators.llm_context import LLMContext
 from emma.runtime.processor import FrameProcessorSetup

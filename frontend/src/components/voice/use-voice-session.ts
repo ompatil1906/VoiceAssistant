@@ -139,6 +139,22 @@ export function useVoiceSession() {
     if (pipeline) void pipeline.close();
   }, []);
 
+  /** The intake reason is per call: never let a finished call pre-fill the next. */
+  const clearStaleReason = useCallback(() => {
+    setCallerState((prev) => (prev.reason ? { ...prev, reason: "" } : prev));
+    try {
+      const raw = window.localStorage.getItem("emma.voice.config");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { caller?: Partial<VoiceCaller> };
+      if (parsed.caller) {
+        parsed.caller.reason = "";
+        window.localStorage.setItem("emma.voice.config", JSON.stringify(parsed));
+      }
+    } catch {
+      /* a corrupt preference must not break the end of a call */
+    }
+  }, []);
+
   const handleEvent = useCallback(
     (event: VoiceEvent) => {
       switch (event.type) {
@@ -204,12 +220,13 @@ export function useVoiceSession() {
           transportRef.current = null;
           closePipeline();
           setMuted(false);
+          clearStaleReason();
           return;
         default:
           return;
       }
     },
-    [closePipeline],
+    [closePipeline, clearStaleReason],
   );
 
   const sessionContext = useCallback(
@@ -371,7 +388,8 @@ export function useVoiceSession() {
     setMuted(false);
     setOutputLevel(0);
     setMicLevel(0);
-  }, [closePipeline]);
+    clearStaleReason();
+  }, [closePipeline, clearStaleReason]);
 
   const toggleMute = useCallback(() => {
     const pipeline = pipelineRef.current;

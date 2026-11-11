@@ -1,0 +1,14 @@
+port: 7880
+bind_addresses:
+  - "127.0.0.1"
+rtc:
+  tcp_port: 7881
+  port_range_start: 7882
+  port_range_end: 7890
+  use_external_ip: false
+  node_ip: "127.0.0.1"
+keys:
+  emma_local: "88e37e48e6bcacd30d3cdd8d0dd1e8afca052f73a6428937bb95e86540fa1286"
+logging:
+  level: info
+

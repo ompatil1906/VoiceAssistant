@@ -22,22 +22,10 @@ if TYPE_CHECKING:
     from opentelemetry import trace
 
 from emma.runtime.frames import MetricsFrame, TranscriptionFrame, TTSStoppedFrame, UserStoppedSpeakingFrame, VADUserStartedSpeakingFrame
-    MetricsFrame,
-    TranscriptionFrame,
-    TTSStoppedFrame,
-    UserStoppedSpeakingFrame,
-    VADUserStartedSpeakingFrame,
-)
 from emma.observability.metrics.metrics import TTFBMetricsData
 from emma.intelligence.aggregators.llm_context import NOT_GIVEN
 from emma.runtime.processor import FrameDirection
 from emma.support.tracing.service_attributes import add_gemini_live_span_attributes, add_llm_span_attributes, add_openai_realtime_span_attributes, add_stt_span_attributes, add_tts_span_attributes
-    add_gemini_live_span_attributes,
-    add_llm_span_attributes,
-    add_openai_realtime_span_attributes,
-    add_stt_span_attributes,
-    add_tts_span_attributes,
-)
 from emma.support.tracing.setup import is_tracing_available
 
 if is_tracing_available():

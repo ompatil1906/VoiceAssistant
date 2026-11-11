@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from emma.support.deprecation import warn_deprecated
 
 if TYPE_CHECKING:
-from emma.runtime.workers.base_worker import BaseWorker
+    from emma.runtime.workers.base_worker import BaseWorker
 
 
 class JobParams(BaseModel):

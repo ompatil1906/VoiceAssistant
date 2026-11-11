@@ -31,13 +31,6 @@ from pydantic import BaseModel
 from emma.speech.adapters.base_expression_adapter import BaseExpressionAdapter
 from emma.speech.adapters.services.gemini_adapter import Gemini38ExpressionAdapter
 from emma.runtime.frames import CancelFrame, EndFrame, ErrorFrame, Frame, StartFrame, TTSAudioRawFrame
-    CancelFrame,
-    EndFrame,
-    ErrorFrame,
-    Frame,
-    StartFrame,
-    TTSAudioRawFrame,
-)
 from emma.runtime.processor import FrameProcessorSetup
 from emma.speech.settings import TTSSettings
 from emma.speech.tts.base import TTSService

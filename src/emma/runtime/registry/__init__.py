@@ -6,3 +6,12 @@
 # Inherited from an upstream BSD 2-Clause licensed voice framework and
 # modified for EMMA Receptionist by QuantumLoopAI.
 #
+
+
+"""Worker registry for tracking known workers across runners."""
+
+from emma.runtime.registry.registry import WorkerRegistry
+
+__all__ = [
+    "WorkerRegistry",
+]

@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     # Imported for typing only: observer.py imports this module, so a runtime
     # import back would be circular. With ``from __future__ import annotations``
     # the annotation below is just a string and the field's value is a plain dict.
-from emma.transports.rtvi.observer import RTVIFunctionCallReportLevel
+    from emma.transports.rtvi.observer import RTVIFunctionCallReportLevel
 
 
 @dataclass

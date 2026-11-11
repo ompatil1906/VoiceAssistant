@@ -11,14 +11,6 @@ import re
 from loguru import logger
 
 from emma.runtime.frames import BotSpeakingFrame, Frame, ProposedUserStartedSpeakingFrame, TranscriptionFrame, UserSpeakingFrame, UserStartedSpeakingFrame, VADUserStartedSpeakingFrame
-    BotSpeakingFrame,
-    Frame,
-    ProposedUserStartedSpeakingFrame,
-    TranscriptionFrame,
-    UserSpeakingFrame,
-    UserStartedSpeakingFrame,
-    VADUserStartedSpeakingFrame,
-)
 from emma.runtime.processor import FrameProcessorSetup
 from emma.turns.types import ProcessFrameResult
 from emma.turns.user_start.base_user_turn_start_strategy import BaseUserTurnStartStrategy

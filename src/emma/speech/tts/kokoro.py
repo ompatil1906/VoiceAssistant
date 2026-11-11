@@ -15,10 +15,6 @@ from pydantic import BaseModel
 
 from emma.audio.utils import create_stream_resampler
 from emma.runtime.frames import ErrorFrame, Frame, TTSAudioRawFrame
-    ErrorFrame,
-    Frame,
-    TTSAudioRawFrame,
-)
 from emma.speech.settings import TTSSettings
 from emma.speech.tts.base import TTSService
 from emma.speech.language import Language, resolve_language

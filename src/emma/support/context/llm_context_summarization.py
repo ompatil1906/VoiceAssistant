@@ -17,15 +17,11 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-from emma.intelligence.llm.base import LLMService
+    from emma.intelligence.llm.base import LLMService
 
 from loguru import logger
 
 from emma.intelligence.aggregators.llm_context import LLMContext, LLMContextMessage, LLMSpecificMessage
-    LLMContext,
-    LLMContextMessage,
-    LLMSpecificMessage,
-)
 from emma.support.deprecation import deprecated
 
 # Fallback timeout (seconds) used when summarization_timeout is None.

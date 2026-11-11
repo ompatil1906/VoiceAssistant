@@ -26,19 +26,7 @@ import numpy as np
 from loguru import logger
 
 from emma.audio.krisp_instance import KrispVivaSDKManager, int_to_krisp_frame_duration, int_to_krisp_sample_rate, krisp_sdk_ip_accepts_bot_speaking
-    KrispVivaSDKManager,
-    int_to_krisp_frame_duration,
-    int_to_krisp_sample_rate,
-    krisp_sdk_ip_accepts_bot_speaking,
-)
 from emma.runtime.frames import BotStartedSpeakingFrame, BotStoppedSpeakingFrame, Frame, InputAudioRawFrame, VADUserStartedSpeakingFrame, VADUserStoppedSpeakingFrame
-    BotStartedSpeakingFrame,
-    BotStoppedSpeakingFrame,
-    Frame,
-    InputAudioRawFrame,
-    VADUserStartedSpeakingFrame,
-    VADUserStoppedSpeakingFrame,
-)
 from emma.turns.user_start.base_user_turn_start_strategy import BaseUserTurnStartStrategy
 
 try:

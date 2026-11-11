@@ -214,7 +214,7 @@ export function VoiceStage() {
               {status === "error"
                 ? "The line dropped. End the call and start again."
                 : active && mode === "live"
-                  ? "Microphone is live. Audio streams to your configured gateway."
+                  ? "Microphone is live. Audio streams to your EMMA LiveKit room."
                   : "Clearly labelled sample dialogue. No call is placed and no microphone is opened."}
             </p>
           </section>

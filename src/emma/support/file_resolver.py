@@ -35,11 +35,6 @@ import aiohttp
 
 from emma.support.file_storage import FileStorage
 from emma.support.security.ssrf import IPNetwork, UrlReachability, classify_url_reachability, default_allowed_file_url_networks
-    IPNetwork,
-    UrlReachability,
-    classify_url_reachability,
-    default_allowed_file_url_networks,
-)
 
 _DEFAULT_MAX_FETCH_BYTES = 50 * 1024 * 1024
 _DEFAULT_FETCH_TIMEOUT_SECS = 30

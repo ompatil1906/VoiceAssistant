@@ -11,19 +11,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 
 from emma.support.text.alnum_utils import advance_by_alnums, advance_by_chars, alnum_only, fold_for_matching, has_alnum, strip_trailing_punctuation
-    advance_by_alnums,
-    advance_by_chars,
-    alnum_only,
-    fold_for_matching,
-    has_alnum,
-    strip_trailing_punctuation,
-)
 from emma.support.text.markup_utils import raw_offset_after_clean_chars, split_markup_runs, strip_complete_markup, strip_markup
-    raw_offset_after_clean_chars,
-    split_markup_runs,
-    strip_complete_markup,
-    strip_markup,
-)
 
 
 @dataclass(frozen=True)

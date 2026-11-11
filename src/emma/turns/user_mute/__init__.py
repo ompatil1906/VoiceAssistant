@@ -1,8 +1,17 @@
-#
-# Copyright (c) 2024-2026, Daily
+ 
 # Copyright (c) 2026, QuantumLoopAI
-#
-# SPDX-License-Identifier: BSD 2-Clause License
-# Inherited from an upstream BSD 2-Clause licensed voice framework and
-# modified for EMMA Receptionist by QuantumLoopAI.
-#
+# Modified for EMMA Receptionist by QuantumLoopAI.
+
+from emma.turns.user_mute.always_user_mute_strategy import AlwaysUserMuteStrategy
+from emma.turns.user_mute.base_user_mute_strategy import BaseUserMuteStrategy
+from emma.turns.user_mute.first_speech_user_mute_strategy import FirstSpeechUserMuteStrategy
+from emma.turns.user_mute.function_call_user_mute_strategy import FunctionCallUserMuteStrategy
+from emma.turns.user_mute.mute_until_first_bot_complete_user_mute_strategy import MuteUntilFirstBotCompleteUserMuteStrategy
+
+__all__ = [
+    "AlwaysUserMuteStrategy",
+    "BaseUserMuteStrategy",
+    "FirstSpeechUserMuteStrategy",
+    "FunctionCallUserMuteStrategy",
+    "MuteUntilFirstBotCompleteUserMuteStrategy",
+]

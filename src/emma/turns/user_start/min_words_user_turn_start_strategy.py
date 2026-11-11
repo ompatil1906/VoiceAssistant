@@ -7,12 +7,6 @@
 from loguru import logger
 
 from emma.runtime.frames import BotStartedSpeakingFrame, BotStoppedSpeakingFrame, Frame, InterimTranscriptionFrame, TranscriptionFrame
-    BotStartedSpeakingFrame,
-    BotStoppedSpeakingFrame,
-    Frame,
-    InterimTranscriptionFrame,
-    TranscriptionFrame,
-)
 from emma.turns.user_start.base_user_turn_start_strategy import BaseUserTurnStartStrategy
 from emma.support.text.word_count import count_spoken_words
 

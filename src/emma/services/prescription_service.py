@@ -17,14 +17,16 @@ import email.message
 import os
 import re
 import smtplib
-from datetime import datetime, timezone
+from collections.abc import Mapping
+from datetime import UTC, datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger("emma.prescription_service")
 
 # Official verified demo patient ID
@@ -39,6 +41,12 @@ def normalize_patient_id(raw_id: str | int | None) -> str:
     if raw_id is None:
         return ""
     text = str(raw_id).strip().lower()
+
+    # Spoken or padded forms of the demo ID: "100 and 10", "100 10".
+    # Checked before the plain digit strip so "100 and 10" does not become 10010.
+    compact = re.sub(r"[\s-]+", " ", text)
+    if re.fullmatch(r"100 (and )?10", compact):
+        return "110"
 
     # Direct digit match
     digits = re.sub(r"[^\d]", "", text)
@@ -78,8 +86,8 @@ def generate_prescription_html(
     clinic_name: str = "EMMA Health Practice & Wellness Center",
 ) -> str:
     """Generate professional HTML prescription body for email dispatch."""
-    issue_date = datetime.now(timezone.utc).strftime("%B %d, %Y")
-    rx_number = f"RX-{datetime.now(timezone.utc).strftime('%Y%m%d')}-0110"
+    issue_date = datetime.now(UTC).strftime("%B %d, %Y")
+    rx_number = f"RX-{datetime.now(UTC).strftime('%Y%m%d')}-0110"
 
     return f"""<!DOCTYPE html>
 <html>
@@ -116,7 +124,7 @@ def generate_prescription_html(
       <div class="patient-grid">
         <div>
           <div class="info-label">PATIENT NAME</div>
-          <div class="info-val">{patient_name or 'Valued Patient'}</div>
+          <div class="info-val">{patient_name or "Valued Patient"}</div>
         </div>
         <div>
           <div class="info-label">VERIFIED PATIENT ID</div>
@@ -195,7 +203,9 @@ def send_demo_prescription_email(
         or smtp_user
         or "prescriptions@quantumloop.ai"
     )
-    use_tls = config.get("use_tls", os.getenv("SMTP_USE_TLS", "true").lower() in ("1", "true", "yes"))
+    use_tls = config.get(
+        "use_tls", os.getenv("SMTP_USE_TLS", "true").lower() in ("1", "true", "yes")
+    )
 
     subject = f"Verified Prescription Confirmation - Patient ID #{patient_id} ({medication})"
     html_body = generate_prescription_html(
@@ -217,7 +227,7 @@ def send_demo_prescription_email(
         f"Rx: {medication}\n"
         f"Instructions: {dosage_instructions}\n"
         f"Refills: 0 (Authorized)\n"
-        f"Issued Date: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}\n"
+        f"Issued Date: {datetime.now(UTC).strftime('%Y-%m-%d')}\n"
     )
     msg.add_alternative(html_body, subtype="html")
 
@@ -227,7 +237,9 @@ def send_demo_prescription_email(
     # Attempt Live SMTP Transmission if host is configured
     if smtp_host:
         try:
-            logger.info(f"Connecting to SMTP server {smtp_host}:{smtp_port} for patient {to_email}...")
+            logger.info(
+                f"Connecting to SMTP server {smtp_host}:{smtp_port} for patient {to_email}..."
+            )
             with smtplib.SMTP(smtp_host, smtp_port, timeout=12) as server:
                 if use_tls:
                     server.starttls()
@@ -248,7 +260,7 @@ def send_demo_prescription_email(
     # Always persist a local copy for compliance and offline testing / demo inspection
     archive_dir = Path("data/prescriptions")
     archive_dir.mkdir(parents=True, exist_ok=True)
-    timestamp_slug = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    timestamp_slug = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     file_path = archive_dir / f"rx_patient_{patient_id}_{timestamp_slug}.eml"
     try:
         with open(file_path, "wb") as f:
@@ -264,7 +276,7 @@ def send_demo_prescription_email(
         "medication": medication,
         "archive_path": str(file_path),
         "note": delivery_note,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -286,9 +298,11 @@ def handle_prescription_request(
             "success": False,
             "verified": False,
             "error": "UNVERIFIED_PATIENT_ID",
+            # Never disclose the authorised ID in a refusal: the caller may not
+            # be the patient, and the message is spoken out loud.
             "message": (
-                f"Patient ID '{patient_id_input}' could not be verified. "
-                "For prescription fulfillment, Patient ID must be confirmed as 110."
+                "I couldn't verify that patient ID, so I haven't sent a prescription. "
+                "The practice will need to confirm your identity."
             ),
             "provided_id": str(patient_id_input),
             "normalized_id": normalized,

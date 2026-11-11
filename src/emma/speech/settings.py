@@ -45,7 +45,7 @@ from emma.speech.language import Language
 from emma.support.types import NOT_GIVEN, NotGiven, is_given
 
 if TYPE_CHECKING:
-from emma.turns.user_turn_completion_mixin import UserTurnCompletionConfig
+    from emma.turns.user_turn_completion_mixin import UserTurnCompletionConfig
 
 
 # In a settings object ``NOT_GIVEN`` means "this field was not included in the

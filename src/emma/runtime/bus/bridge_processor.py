@@ -26,19 +26,11 @@ from emma.runtime.bus.bus import WorkerBus
 from emma.runtime.bus.messages import BusFrameMessage, BusMessage
 from emma.runtime.bus.subscriber import BusSubscriber
 from emma.runtime.frames import CancelFrame, EndFrame, Frame, OutputTransportMessageUrgentFrame, PipelineFlushFrame, StartFrame, StopFrame
-    CancelFrame,
-    EndFrame,
-    Frame,
-    OutputTransportMessageUrgentFrame,
-    PipelineFlushFrame,
-    StartFrame,
-    StopFrame,
-)
 from emma.runtime.processor import FrameDirection, FrameProcessor, FrameProcessorSetup
 from emma.support.deprecation import warn_deprecated
 
 if TYPE_CHECKING:
-from emma.runtime.pipeline.worker import PipelineWorker
+    from emma.runtime.pipeline.worker import PipelineWorker
 
 _LIFECYCLE_FRAMES = (StartFrame, EndFrame, CancelFrame, StopFrame)
 _PASSTHROUGH_FRAMES = (OutputTransportMessageUrgentFrame,)

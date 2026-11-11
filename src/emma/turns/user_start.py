@@ -10,7 +10,7 @@ from emma.turns.user_start.vad_user_turn_start_strategy import VADUserTurnStartS
 from emma.turns.user_start.wake_phrase_user_turn_start_strategy import WakePhraseUserTurnStartStrategy
 
 try:
-from emma.turns.user_start.krisp_viva_ip_user_turn_start_strategy import KrispVivaIPUserTurnStartStrategy
+    from emma.turns.user_start.krisp_viva_ip_user_turn_start_strategy import KrispVivaIPUserTurnStartStrategy
 except ImportError:
     KrispVivaIPUserTurnStartStrategy = None  # krisp_audio not installed
 

@@ -11,12 +11,6 @@ from dataclasses import dataclass
 from loguru import logger
 
 from emma.runtime.frames import AggregatedTextFrame, AggregatedTextProgressFrame, Frame, TextType, TTSTextFrame
-    AggregatedTextFrame,
-    AggregatedTextProgressFrame,
-    Frame,
-    TextType,
-    TTSTextFrame,
-)
 from emma.support.context.word_completion_tracker import WordCompletionTracker
 from emma.support.string import match_endofsentence
 from emma.support.text.markup_utils import strip_complete_markup

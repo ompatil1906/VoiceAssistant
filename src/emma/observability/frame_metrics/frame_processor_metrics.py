@@ -11,18 +11,6 @@ from loguru import logger
 from emma.audio.utils import detect_speech_onset
 from emma.runtime.frames import MetricsFrame
 from emma.observability.metrics.metrics import LLMTokenUsage, LLMUsageMetricsData, MetricsData, ProcessingMetricsData, STTUsage, STTUsageMetricsData, TextAggregationMetricsData, TTFAMetricsData, TTFATMetricsData, TTFBMetricsData, TTSUsageMetricsData
-    LLMTokenUsage,
-    LLMUsageMetricsData,
-    MetricsData,
-    ProcessingMetricsData,
-    STTUsage,
-    STTUsageMetricsData,
-    TextAggregationMetricsData,
-    TTFAMetricsData,
-    TTFATMetricsData,
-    TTFBMetricsData,
-    TTSUsageMetricsData,
-)
 from emma.support.base_object import BaseObject
 
 
