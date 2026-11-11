@@ -1,0 +1,167 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "emma-receptionist"
+dynamic = ["version"]
+description = "EMMA Receptionist by QuantumLoopAI — first-party real-time voice agent runtime"
+license = "BSD-2-Clause"
+license-files = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES/*.md", "THIRD_PARTY_NOTICES/*.txt"]
+readme = "README.md"
+requires-python = ">=3.11"
+keywords = ["voice", "realtime", "webrtc", "audio", "speech", "receptionist", "nhs"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Sound/Audio",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+
+# Runtime dependencies. Every one of these is required by the engine itself; a
+# provider's SDK belongs in an extra, and nothing billable is installed by
+# default. See THIRD_PARTY_NOTICES/python-dependencies.md before adding one.
+dependencies = [
+    "aiofiles>=24.1.0,<27",
+    "aiohttp>=3.14.4,<4",
+    "audioop-lts~=0.2.1; python_version>='3.13'",
+    "docstring_parser>=0.16,<1",
+    "loguru~=0.7.3",
+    "loudness>=0.2.0,<1",
+    "Markdown>=3.7,<4",
+    "sentencex==1.0.34",
+    "numpy>=1.26.4,<3",
+    "Pillow>=11.1.0,<14",
+    "protobuf>=5.29.6,<7",
+    "pydantic>=2.10.6,<3",
+    # pydantic <2.13 has no cp314 wheels; pin a floor so 3.14 resolves
+    "pydantic>=2.13; python_full_version >= '3.14'",
+    "python-dotenv>=1.0.0,<2.0.0",
+    "soundfile~=0.13.1",
+    "openai>=1.74.0,<4",
+    "typing_extensions>=4.9",
+    "wait_for2>=0.4.1,<1; python_version<'3.12'",
+    "websockets>=13.1",
+    "pyyaml>=6,<7",
+    # Silero VAD and smart-turn run on ONNX Runtime.
+    "onnxruntime>=1.24.3,<2",
+]
+
+[project.optional-dependencies]
+# Self-hosted LiveKit (Apache-2.0 server; these are the Python clients).
+livekit = ["livekit>=1.0.13,<2", "livekit-api>=1.0.5,<2", "pyjwt>=2.12.0,<3"]
+# Gemini. Free tier, rate limited; unreachable while EMMA_DATA_MODE=synthetic.
+google = ["google-genai>=2.25.0,<3"]
+# Local speech-to-text (MIT) and text-to-speech (Apache-2.0 model weights).
+whisper = ["faster-whisper~=1.2.1"]
+kokoro = ["kokoro-onnx>=0.5.0,<1", "requests>=2.32.5,<3"]
+# WebSocket transport: enough to run a session with no external service.
+websocket = ["fastapi>=0.115.6,<1", "uvicorn>=0.32.0,<1.0.0"]
+# Local model server; talks OpenAI-compatible HTTP via the base `openai` client.
+ollama = []
+# Everything needed for a zero-cost local session.
+local = [
+    "faster-whisper~=1.2.1",
+    "kokoro-onnx>=0.5.0,<1",
+    "requests>=2.32.5,<3",
+    "fastapi>=0.115.6,<1",
+    "uvicorn>=0.32.0,<1.0.0",
+]
+# Number, date and currency verbalisation. LGPL-2.1 — see
+# THIRD_PARTY_NOTICES/python-dependencies.md before enabling it in a product.
+text-normalisation = ["num2words>=0.5.14,<1"]
+
+[dependency-groups]
+dev = [
+    "build~=1.4.0",
+    "coverage~=7.13.4",
+    "pre-commit~=4.5.1",
+    "pyright==1.1.414",
+    "pytest>=9.0.0,<10",
+    "pytest-asyncio>=1.0.0,<2",
+    "pytest-aiohttp>=1.0.0,<2",
+    "pytest-cov>=7.0.0,<8",
+    "pytest-xdist>=3.8.0,<4",
+    "ruff>=0.12.11,<1",
+    "setuptools~=83.0.0",
+    "setuptools_scm~=8.3.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["emma*"]
+
+[tool.setuptools.package-data]
+"emma" = ["py.typed"]
+"emma.runtime.frames" = ["*.proto"]
+"emma.speech.vad" = ["data/*.onnx"]
+"emma.speech.turn_detection.smart_turn" = ["data/*.onnx"]
+
+[tool.pytest.ini_options]
+addopts = "--verbose -n auto"
+testpaths = ["tests/emma"]
+pythonpath = ["src"]
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    "ignore:'audioop' is deprecated:DeprecationWarning",
+]
+
+[tool.setuptools_scm]
+local_scheme = "no-local-version"
+fallback_version = "0.1.0.dev0"
+
+[tool.ruff]
+exclude = [".git", "*_pb2.py"]
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "ASYNC", # Blocking calls and other misuse inside async functions
+    "B", # Likely bugs and design problems
+    "D", # Docstring rules
+    "F", # Pyflakes
+    "I", # Import rules
+    "RUF006", # asyncio tasks nothing holds a reference to
+    "UP", # Modern Python
+]
+ignore = [
+    # ASYNC109 objects to a `timeout` parameter on an async function, which is how
+    # cancellation is spelled throughout the engine's API. ASYNC240 prescribes
+    # trio/anyio path objects; the runtime is asyncio-only. ASYNC110 is a deferral:
+    # its one site polls a queue in the audio output path.
+    "ASYNC109",
+    "ASYNC110",
+    "ASYNC240",
+    # Base classes leave optional hooks empty so subclasses override only what they
+    # need; B024/B027 would force every subclass to implement them.
+    "B024",
+    "B027",
+    # Deferrals rather than rejections: drop the line and fix what it reports.
+    "B007",
+    "B904",
+    "B905",
+    "D105",
+    # Unused imports are handled by the pre-commit hook so they are stripped at
+    # commit time rather than mid-development.
+    "F401",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["D", "ASYNC230", "RUF006"]
+"scripts/**/*.py" = ["D", "ASYNC230", "RUF006"]
+"docs/**/*.py" = ["D"]
+"**/__init__.py" = ["D104"]
+"**/*_pb2.py" = ["D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.coverage.run]
+command_line = "--module pytest"
+source = ["src/emma"]
+omit = ["*/tests/*"]

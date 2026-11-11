@@ -1,0 +1,34 @@
+ 
+# Copyright (c) 2026, QuantumLoopAI
+# Modified for EMMA Receptionist by QuantumLoopAI.
+
+"""Base clock interface for EMMA timing operations."""
+
+from abc import ABC, abstractmethod
+
+
+class BaseClock(ABC):
+    """Abstract base class for clock implementations.
+
+    Provides a common interface for timing operations used in EMMA
+    for synchronization, scheduling, and time-based processing.
+    """
+
+    @abstractmethod
+    def get_time(self) -> int:
+        """Get the current time value.
+
+        Returns:
+            The current time as an integer value. The specific unit and
+            reference point depend on the concrete implementation.
+        """
+        pass
+
+    @abstractmethod
+    def start(self):
+        """Start or initialize the clock.
+
+        Performs any necessary initialization or starts the timing mechanism.
+        This method should be called before using get_time().
+        """
+        pass

@@ -1,0 +1,27 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0A0B0F"/>
+      <stop offset="1" stop-color="#050506"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="128" y1="108" x2="388" y2="404" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A5F3FC"/>
+      <stop offset="0.46" stop-color="#818CF8"/>
+      <stop offset="1" stop-color="#F0ABFC"/>
+    </linearGradient>
+    <radialGradient id="core" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(256 256) rotate(90) scale(38)">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="0.55" stop-color="#CFFAFE"/>
+      <stop offset="1" stop-color="#818CF8"/>
+    </radialGradient>
+    <filter id="glow" x="40" y="40" width="432" height="432" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="116" stroke="url(#mark)" stroke-width="20" opacity="0.3" filter="url(#glow)"/>
+  <circle cx="256" cy="256" r="116" stroke="url(#mark)" stroke-width="18"/>
+  <ellipse cx="256" cy="256" rx="160" ry="62" transform="rotate(-34 256 256)" stroke="url(#mark)" stroke-width="8" opacity="0.55"/>
+  <path d="M326 326L390 390" stroke="url(#mark)" stroke-width="21" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="27" fill="url(#core)"/>
+</svg>
