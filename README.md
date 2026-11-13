@@ -92,6 +92,84 @@ ollama pull gemma3:4b && ollama serve
 
 # 4. Run the tests
 uv run pytest tests/emma
+
+
+
+
+Ran list root and scripts
+Ran read frontend package.json
+Analyzed run_agent_session.py:L1-60
+Analyzed run_agent_session.py:L1170-1232
+Analyzed route.ts:L1-100
+Analyzed route.ts:L100-150
+Ran check if livekit-server is installed
+Ran search for FastAPI usage
+Analyzed README.md:L1-100
+Analyzed DEPLOYMENT.md:L1-100
+Ran check other EMMA repo
+Ran list QuantumLoopAI projects
+Ran check env port and url vars
+Ran check frontend env
+Ran check scripts/emma
+Ran check active ports
+
+Here are the server start commands for running the EMMA voice system:
+
+---
+
+### 1. LiveKit Server (WebRTC SFU)
+Runs the WebRTC media server required for voice streaming (`ws://127.0.0.1:7880`).
+
+- **Using native binary:**
+  ```bash
+  livekit-server --config livekit.yaml
+  ```
+- **Or using Docker:**
+  ```bash
+  docker run --rm -p 7880:7880 -p 7881:7881 -p 7882:7882/udp \
+    -v "$PWD/livekit.yaml:/livekit.yaml" livekit/livekit-server --config /livekit.yaml
+  ```
+
+---
+
+### 2. Frontend & Token Server (Next.js)
+Runs the voice console UI and the `/api/voice/token` endpoint at `http://localhost:3000`.
+
+```bash
+cd frontend
+npm run dev
+```
+
+> **Note:** When you start a call from the frontend console, the `/api/voice/token` route automatically spawns the Python voice agent session (`scripts/run_agent_session.py`) in the background.
+
+---
+
+### 3. Voice Agent Session Runner (Manual / Standalone)
+If you want to run or debug the voice agent directly for a specific room without the UI auto-spawning it:
+
+```bash
+.venv-313/bin/python scripts/run_agent_session.py --room <ROOM_NAME> --caller '{"firstName": "Sam"}'
+```
+
+---
+
+### 4. Local LLM Server (Ollama — Optional)
+Only needed if you are using the local offline profile (`EMMA_PROVIDER_PROFILE=local`):
+
+```bash
+ollama serve
+```
+*(Make sure the model is pulled: `ollama pull gemma3:4b`)*
+
+---
+
+### Standard Development Startup Workflow:
+1. **Terminal 1:** `livekit-server --config livekit.yaml`
+2. **Terminal 2:** `cd frontend && npm run dev`
+3. Open `http://localhost:3000` in your browser and click to connect.
+
+---
+
 ```
 
 Bringing up LiveKit, the EMMA backend and the browser client is covered in
