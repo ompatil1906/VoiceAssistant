@@ -11,22 +11,95 @@ services:
         value: 3.11.9
       - key: PYTHONPATH
         value: src:scripts
+
+      # Provider selection & policies
+      - key: EMMA_PROVIDER_PROFILE
+        value: custom
+      - key: EMMA_PROVIDERS
+        value: kokoro,whisper,silero_vad,ollama,gemini,deepgram,elevenlabs
+      - key: EMMA_LLM_PROVIDER
+        value: gemini
+      - key: EMMA_STT_PROVIDER
+        value: deepgram
+      - key: EMMA_TTS_PROVIDER
+        value: elevenlabs
+      - key: TTS_PROVIDER
+        value: elevenlabs
+      - key: EMMA_ALLOW_PAID
+        value: "true"
+      - key: EMMA_ALLOW_TRIAL
+        value: "true"
+      - key: EMMA_DATA_MODE
+        value: approved
+
+      # Session limits
+      - key: EMMA_MAX_SESSION_REQUESTS
+        value: "200"
+      - key: EMMA_MAX_SESSION_TOKENS
+        value: "100000"
+      - key: EMMA_MAX_SESSION_CHARACTERS
+        value: "200000"
+      - key: EMMA_MAX_SESSION_AUDIO_SECONDS
+        value: "1800"
+      - key: EMMA_MAX_SESSION_MINUTES
+        value: "15"
+      - key: EMMA_MAX_SESSION_USD
+        value: "0.00"
+      - key: EMMA_LEDGER_PATH
+        value: logs/usage.jsonl
+
+      # LiveKit WebRTC Transport
       - key: LIVEKIT_URL
         sync: false
       - key: LIVEKIT_API_KEY
         sync: false
       - key: LIVEKIT_API_SECRET
         sync: false
+
+      # AI & Speech Services
       - key: GEMINI_API_KEY
         sync: false
+      - key: EMMA_GEMINI_MODEL
+        value: gemini-3.8-flash
       - key: DEEPGRAM_API_KEY
         sync: false
+      - key: DEEPGRAM_MODEL
+        value: nova-3
       - key: ELEVENLABS_API_KEY
         sync: false
-      - key: EMMA_DATA_MODE
-        value: approved
-      - key: EMMA_ALLOW_PAID
-        value: "true"
-      - key: EMMA_ALLOW_TRIAL
-        value: "true"
+      - key: ELEVENLABS_VOICE_ID
+        value: TX3LPaxmHKxFdv7VOQHJ
+      - key: ELEVENLABS_MODEL
+        value: eleven_flash_v2_5
 
+      # Alternate providers (optional)
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: AZURE_SPEECH_KEY
+        sync: false
+      - key: AZURE_SPEECH_REGION
+        value: eastasia
+      - key: AZURE_SPEECH_LANGUAGE
+        value: en-GB
+      - key: AZURE_SPEECH_VOICE
+        value: en-GB-SoniaNeural
+
+      # Clinic & Practice Configuration
+      - key: CLINIC_NAME
+        value: "QuantumLoopAI Health Clinic"
+      - key: CLINIC_ADDRESS
+        value: "100 Innovation Way, Suite 400"
+      - key: CLINIC_DOCTORS
+        value: "Dr. Sharma,Dr. Jenkins"
+      - key: CLINIC_SLOT_MINUTES
+        value: "15"
+      - key: APPOINTMENT_LEDGER_PATH
+        value: data/appointments.json
+      - key: PRACTICE_API_BASE_URL
+        value: "https://voiceassistantemma.netlify.app"
+      - key: PRACTICE_ID
+        value: "b937fd00-5dc1-4906-af89-5205239c24e7"
+      - key: LOG_LEVEL
+        value: INFO
