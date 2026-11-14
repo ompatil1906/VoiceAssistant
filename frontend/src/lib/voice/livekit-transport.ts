@@ -456,10 +456,21 @@ export function createLiveKitTransport(
         if (!token.token) throw new Error("Gateway returned no room token");
         if (!active) return;
 
-        const url =
+        let url =
           token.livekit_url ??
           options.livekitUrl ??
           httpToWs(gatewayHttpUrl);
+
+        if (typeof window !== "undefined" && window.location.protocol === "https:") {
+          if (url.includes("127.0.0.1") || url.includes("localhost")) {
+            throw new Error(
+              "HTTPS sites cannot connect to local LiveKit (127.0.0.1). Configure a public LiveKit URL (e.g. LiveKit Cloud 'wss://<project>.livekit.cloud') in your Render environment variables."
+            );
+          }
+          if (url.startsWith("ws://")) {
+            url = url.replace(/^ws:\/\//i, "wss://");
+          }
+        }
 
         const nextRoom = new Room({
           adaptiveStream: false,

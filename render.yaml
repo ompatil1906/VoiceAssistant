@@ -98,7 +98,7 @@ services:
       - key: APPOINTMENT_LEDGER_PATH
         value: data/appointments.json
       - key: PRACTICE_API_BASE_URL
-        value: "https://voiceassistantemma.netlify.app"
+        value: "https://voiceassistant.heyompatil.me"
       - key: PRACTICE_ID
         value: "b937fd00-5dc1-4906-af89-5205239c24e7"
       - key: LOG_LEVEL
