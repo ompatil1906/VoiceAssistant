@@ -3,6 +3,11 @@
 Every entry states what was actually run and what the result was. A capability
 that was not exercised is marked **NOT TESTED** or **BLOCKED** — never assumed.
 
+The real-time voice loop (turn assembly, streaming model, sentence synthesis,
+barge-in) has its own report with live measurements:
+[`VOICE_REALTIME_FIX.md`](VOICE_REALTIME_FIX.md). It records the 51 new
+regression tests and the headless LiveKit runs that back its numbers.
+
 Environment: macOS, Python 3.13.5, no virtualenv, no third-party packages
 installed (`pydantic`, `loguru`, `numpy`, `pytest` and the upstream runtime are all absent
 from the interpreter used for these runs).

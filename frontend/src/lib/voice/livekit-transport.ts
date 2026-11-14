@@ -54,9 +54,14 @@ const ASSISTANT_STATES: Record<string, VoiceState> = {
 };
 
 const BARGE_IN_LEVEL = 0.5;
-const BARGE_IN_TICKS = 5;
-const BARGE_IN_GRACE_TICKS = 12;
+// React within ~180 ms of sustained caller energy, after a short grace period
+// that lets echo cancellation settle on EMMA's first syllable.
+const BARGE_IN_TICKS = 3;
+const BARGE_IN_GRACE_TICKS = 6;
 const MONITOR_MS = 60;
+// A WebRTC audio element can still hold a few hundred milliseconds of the
+// obsolete reply when the agent stops publishing. Muting briefly drops it.
+const BARGE_IN_MUTE_MS = 450;
 
 const BROWSER_STT_ENABLED =
   process.env.NEXT_PUBLIC_BROWSER_STT === "1";
@@ -122,7 +127,26 @@ export function createLiveKitTransport(
   let recognition: { stop(): void; start(): void } | null = null;
 
   const audioElements = new Set<HTMLMediaElement>();
+  let bargeInMuteTimer: number | null = null;
   let unwirePlaybackGesture: (() => void) | null = null;
+
+  /** Drop audio the browser has already buffered for an obsolete reply. */
+  const muteBufferedPlayback = () => {
+    for (const element of audioElements) element.muted = true;
+    if (bargeInMuteTimer !== null) window.clearTimeout(bargeInMuteTimer);
+    bargeInMuteTimer = window.setTimeout(() => {
+      bargeInMuteTimer = null;
+      for (const element of audioElements) element.muted = false;
+    }, BARGE_IN_MUTE_MS);
+  };
+
+  const unmutePlayback = () => {
+    if (bargeInMuteTimer !== null) {
+      window.clearTimeout(bargeInMuteTimer);
+      bargeInMuteTimer = null;
+    }
+    for (const element of audioElements) element.muted = false;
+  };
 
   const emit = (event: VoiceEvent) => ctx?.onEvent(event);
 
@@ -363,6 +387,7 @@ export function createLiveKitTransport(
         if (agentSpeaking) {
           speakingTicks = 0;
           speechTicks = 0;
+          unmutePlayback();
           // The browser transcriber must not hear EMMA's own voice.
           pauseSpeechRecognition();
         } else if (!muted) {
@@ -374,6 +399,7 @@ export function createLiveKitTransport(
       case "barge-in": {
         agentSpeaking = false;
         speechTicks = 0;
+        muteBufferedPlayback();
         return;
       }
       default:
@@ -410,6 +436,10 @@ export function createLiveKitTransport(
   };
 
   const clearAudioElements = () => {
+    if (bargeInMuteTimer !== null) {
+      window.clearTimeout(bargeInMuteTimer);
+      bargeInMuteTimer = null;
+    }
     for (const element of audioElements) {
       try {
         element.pause();

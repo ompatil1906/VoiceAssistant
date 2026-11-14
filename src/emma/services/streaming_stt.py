@@ -48,6 +48,13 @@ GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models"
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 DEFAULT_SAMPLE_RATE = 16_000
+# Provider endpointing only has to cut the audio into segments; the turn
+# assembler decides when a caller turn is complete. Keeping this short lowers
+# the latency of the committed transcript without answering mid-sentence.
+DEFAULT_ENDPOINTING_MS = 300
+# Silence after which Deepgram declares UtteranceEnd. This is the provider's
+# authoritative end-of-turn signal and the assembler's preferred trigger.
+DEFAULT_UTTERANCE_END_MS = 1000
 
 
 @dataclass
@@ -62,7 +69,15 @@ class TranscriptEvent:
         source: Which provider produced it.
         speech_final: Whether the provider marked this segment as the end of a
             spoken utterance. Deepgram emits several ``final`` segments per
-            sentence; only ``speech_final`` means the caller has stopped.
+            sentence; only ``speech_final`` means the provider's endpointing
+            saw silence. Turn assembly treats it as a signal, not a turn.
+        is_final: Whether the provider committed this segment (``is_final``).
+            ``type`` is ``final`` for these events.
+        from_finalize: Whether the segment was produced by an explicit
+            ``Finalize`` request rather than the provider's own endpointing.
+            Such segments are revisions and must not open a second turn.
+        sequence: Monotonic arrival counter within the stream, used to keep
+            events ordered when several arrive together.
     """
 
     type: str
@@ -71,6 +86,9 @@ class TranscriptEvent:
     duration: float = 0.0
     source: str = "deepgram"
     speech_final: bool = False
+    is_final: bool = False
+    from_finalize: bool = False
+    sequence: int = 0
 
 
 class DeepgramStreamingTranscriber:
@@ -82,6 +100,10 @@ class DeepgramStreamingTranscriber:
         sample_rate: Input sample rate in Hz; LiveKit delivers 16 kHz.
         language: BCP-47 language tag.
         budget: Optional session budget; recorded as audio seconds when known.
+        endpointing_ms: Provider endpointing silence in milliseconds. Only
+            splits audio into segments; turn completeness is decided locally.
+        utterance_end_ms: Silence after which the provider emits
+            ``UtteranceEnd``, the authoritative end-of-turn signal.
     """
 
     def __init__(
@@ -92,6 +114,8 @@ class DeepgramStreamingTranscriber:
         sample_rate: int = DEFAULT_SAMPLE_RATE,
         language: str = "en-GB",
         budget: Any | None = None,
+        endpointing_ms: int = DEFAULT_ENDPOINTING_MS,
+        utterance_end_ms: int = DEFAULT_UTTERANCE_END_MS,
     ) -> None:
         """Store the stream configuration; call :meth:`start` to connect."""
         self._api_key = api_key
@@ -99,6 +123,11 @@ class DeepgramStreamingTranscriber:
         self._sample_rate = sample_rate
         self._language = language
         self._budget = budget
+        self._endpointing_ms = max(10, int(endpointing_ms))
+        # Deepgram requires utterance_end_ms to exceed endpointing.
+        self._utterance_end_ms = max(
+            self._endpointing_ms + 100, int(utterance_end_ms)
+        )
         self._ws: Any | None = None
         self._reader: asyncio.Task[None] | None = None
         self._events: asyncio.Queue[TranscriptEvent] = asyncio.Queue(maxsize=64)
@@ -106,6 +135,8 @@ class DeepgramStreamingTranscriber:
         self.failed = False
         self.connected = False
         self._connected_at = 0.0
+        self._sequence = 0
+        self.events_received = 0
 
     @property
     def healthy(self) -> bool:
@@ -121,8 +152,8 @@ class DeepgramStreamingTranscriber:
             "channels": "1",
             "smart_format": "true",
             "interim_results": "true",
-            "endpointing": "700",
-            "utterance_end_ms": "1400",
+            "endpointing": str(self._endpointing_ms),
+            "utterance_end_ms": str(self._utterance_end_ms),
             "vad_events": "true",
             # Opt out of model-improvement programmes where the account allows it.
             "mip_opt_out": "true",
@@ -205,18 +236,26 @@ class DeepgramStreamingTranscriber:
             text = (alternatives[0].get("transcript") if alternatives else "") or ""
             if not text.strip():
                 return None
-            final = bool(message.get("is_final") or message.get("speech_final"))
+            self._sequence += 1
+            self.events_received += 1
+            is_final = bool(message.get("is_final"))
+            speech_final = bool(message.get("speech_final"))
             return TranscriptEvent(
-                type="final" if final else "partial",
+                type="final" if (is_final or speech_final) else "partial",
                 text=text.strip(),
                 start=float(message.get("start") or 0.0),
                 duration=float(message.get("duration") or 0.0),
-                speech_final=bool(message.get("speech_final")),
+                speech_final=speech_final,
+                is_final=is_final or speech_final,
+                from_finalize=bool(message.get("from_finalize")),
+                sequence=self._sequence,
             )
         if kind == "UtteranceEnd":
-            return TranscriptEvent(type="utterance_end")
+            self._sequence += 1
+            return TranscriptEvent(type="utterance_end", sequence=self._sequence)
         if kind == "SpeechStarted":
-            return TranscriptEvent(type="speech_started")
+            self._sequence += 1
+            return TranscriptEvent(type="speech_started", sequence=self._sequence)
         if kind in ("Metadata", "KeepAlive"):
             return None
         return None

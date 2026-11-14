@@ -22,7 +22,7 @@ import asyncio
 import json
 import logging
 import time
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -77,6 +77,35 @@ class ModelReply:
         return bool(self.function_calls)
 
 
+@dataclass
+class StreamChunk:
+    """One increment of a streamed model response.
+
+    Text chunks are yielded as soon as the model produces them so synthesis can
+    start before the reply is complete. The terminal chunk carries the tool
+    calls (if any), the finish reason and the token usage.
+
+    Parameters:
+        text: New spoken text, empty for non-text chunks.
+        function_calls: Tools requested by the model; only on the final chunk.
+        finish_reason: Gemini's finish reason.
+        tokens: Total tokens used, from ``usageMetadata``.
+        error: Set when the stream failed before producing any text.
+        final: True for the last chunk of this stream.
+        latency_ms: Time from request start to this chunk.
+        first_text_ms: Time from request start to the first text chunk.
+    """
+
+    text: str = ""
+    function_calls: list[FunctionCall] = field(default_factory=list)
+    finish_reason: str = ""
+    tokens: int = 0
+    error: str | None = None
+    final: bool = False
+    latency_ms: float = 0.0
+    first_text_ms: float = 0.0
+
+
 class GeminiClient:
     """A persistent Gemini conversation client.
 
@@ -126,6 +155,41 @@ class GeminiClient:
 
     def _url(self) -> str:
         return f"{GEMINI_ENDPOINT}/{self._model}:generateContent"
+
+    def _stream_url(self) -> str:
+        return f"{GEMINI_ENDPOINT}/{self._model}:streamGenerateContent?alt=sse"
+
+    def _quota_reply(self, reason: str) -> ModelReply:
+        """The spoken refusal used when the budget or quota blocks a request."""
+        self._quota_exhausted = True
+        return ModelReply(
+            text=(
+                "I'm sorry, this call has reached its usage limit. "
+                "Please call the practice directly."
+            ),
+            error=reason,
+        )
+
+    def _reserve(self) -> ModelReply | None:
+        """Reserve one metered request, returning the refusal reply on failure."""
+        if self._budget is None:
+            return None
+        try:
+            self._budget.reserve_request()
+        except Exception as exc:
+            logger.warning(f"[Gemini] budget refused the request: {exc}")
+            return self._quota_reply(str(exc))
+        return None
+
+    def _record_tokens(self, tokens: int) -> None:
+        """Record token usage, flipping the session to exhausted on refusal."""
+        if self._budget is None or not tokens:
+            return
+        try:
+            self._budget.record_tokens(tokens)
+        except Exception as exc:
+            self._quota_exhausted = True
+            logger.warning(f"[Gemini] token allowance exceeded: {exc}")
 
     async def warmup(self) -> None:
         """Open the TLS connection and prime the model with a tiny request."""
@@ -190,19 +254,9 @@ class GeminiClient:
                 ),
                 error="quota-exhausted",
             )
-        if self._budget is not None:
-            try:
-                self._budget.reserve_request()
-            except Exception as exc:
-                self._quota_exhausted = True
-                logger.warning(f"[Gemini] budget refused the request: {exc}")
-                return ModelReply(
-                    text=(
-                        "I'm sorry, this call has reached its usage limit. "
-                        "Please call the practice directly."
-                    ),
-                    error=str(exc),
-                )
+        refused = self._reserve()
+        if refused is not None:
+            return refused
 
         payload: dict[str, Any] = {
             "system_instruction": {"parts": [{"text": system_instruction}]},
@@ -262,12 +316,7 @@ class GeminiClient:
 
         usage = data.get("usageMetadata") or {}
         tokens = int(usage.get("totalTokenCount") or 0)
-        if self._budget is not None and tokens:
-            try:
-                self._budget.record_tokens(tokens)
-            except Exception as exc:
-                self._quota_exhausted = True
-                logger.warning(f"[Gemini] token allowance exceeded: {exc}")
+        self._record_tokens(tokens)
 
         candidates = data.get("candidates") or []
         if not candidates:
@@ -309,8 +358,199 @@ class GeminiClient:
             tokens=tokens,
         )
 
+    async def stream(
+        self,
+        *,
+        system_instruction: str,
+        contents: Sequence[dict[str, Any]],
+        tools: Sequence[dict[str, Any]] | None = None,
+        temperature: float = 0.25,
+        max_output_tokens: int = 400,
+    ) -> AsyncIterator[StreamChunk]:
+        """Stream the next assistant turn token by token.
+
+        Text is yielded as soon as the model produces it, so the caller can
+        synthesise and play the first sentence while the rest of the reply is
+        still being generated. Thought parts are never yielded: a reasoning
+        model would otherwise read its own deliberation out loud.
+
+        Args:
+            system_instruction: Grounding text for the receptionist.
+            contents: Gemini conversation turns (``role``/``parts``).
+            tools: Optional tool declarations.
+            temperature: Sampling temperature.
+            max_output_tokens: Output ceiling; replies are spoken, so short.
+
+        Yields:
+            :class:`StreamChunk` increments; the last one has ``final=True``.
+        """
+        if self._client is None:
+            await self.__aenter__()
+        assert self._client is not None
+
+        started = time.perf_counter()
+        if self._quota_exhausted:
+            yield StreamChunk(error="quota-exhausted", final=True)
+            return
+        refused = self._reserve()
+        if refused is not None:
+            yield StreamChunk(text=refused.text, error=refused.error, final=True)
+            return
+
+        payload: dict[str, Any] = {
+            "system_instruction": {"parts": [{"text": system_instruction}]},
+            "contents": list(contents),
+            "generationConfig": {
+                "temperature": temperature,
+                "maxOutputTokens": max_output_tokens,
+                "thinkingConfig": {"thinkingBudget": 0},
+            },
+        }
+        if tools:
+            payload["tools"] = list(tools)
+
+        emitted_chars = 0
+        first_text_ms = 0.0
+        tokens = 0
+        finish_reason = ""
+        calls: list[FunctionCall] = []
+        last_error = ""
+
+        for attempt in range(2):
+            try:
+                async with self._client.stream(
+                    "POST",
+                    self._stream_url(),
+                    headers={"x-goog-api-key": self._api_key},
+                    json=payload,
+                ) as response:
+                    if response.status_code >= 500 and attempt == 0:
+                        await response.aread()
+                        last_error = f"HTTP {response.status_code}"
+                        await asyncio.sleep(0.25)
+                        continue
+                    if response.status_code >= 400:
+                        body = (await response.aread()).decode("utf-8", "replace")
+                        last_error = f"HTTP {response.status_code}: {body[:200]}"
+                        break
+
+                    async for line in response.aiter_lines():
+                        if not line:
+                            continue
+                        data = line[len("data:") :].strip() if line.startswith("data:") else ""
+                        if not data or data == "[DONE]":
+                            continue
+                        try:
+                            message = json.loads(data)
+                        except ValueError:
+                            continue
+
+                        usage = message.get("usageMetadata") or {}
+                        tokens = int(usage.get("totalTokenCount") or tokens)
+                        for candidate in message.get("candidates") or []:
+                            finish_reason = str(
+                                candidate.get("finishReason") or finish_reason
+                            )
+                            parts = (candidate.get("content") or {}).get("parts") or []
+                            for part in parts:
+                                if part.get("thought"):
+                                    # Deliberation, not speech.
+                                    continue
+                                text = part.get("text")
+                                if isinstance(text, str) and text:
+                                    # Sanitise per delta but keep its edge
+                                    # whitespace: deltas split mid-phrase and a
+                                    # collapsed trailing space would glue the
+                                    # next delta's first word onto this one.
+                                    cleaned = sanitize_stream_delta(text)
+                                    if not cleaned:
+                                        continue
+                                    elapsed_ms = (
+                                        time.perf_counter() - started
+                                    ) * 1000.0
+                                    if not first_text_ms:
+                                        first_text_ms = elapsed_ms
+                                        logger.info(
+                                            f"[Gemini] first text in {first_text_ms:.0f}ms"
+                                        )
+                                    emitted_chars += len(cleaned)
+                                    yield StreamChunk(
+                                        text=cleaned,
+                                        latency_ms=elapsed_ms,
+                                        first_text_ms=first_text_ms,
+                                    )
+                                call = part.get("functionCall") or part.get("function_call")
+                                if isinstance(call, dict) and call.get("name"):
+                                    args = call.get("args")
+                                    calls.append(
+                                        FunctionCall(
+                                            name=str(call["name"]),
+                                            arguments=dict(args)
+                                            if isinstance(args, dict)
+                                            else {},
+                                        )
+                                    )
+                    last_error = ""
+                    break
+            except (httpx.TimeoutException, httpx.TransportError) as exc:
+                last_error = f"{type(exc).__name__}: {exc}"
+                # A stream that already produced text cannot be replayed
+                # without duplicating it; fail the turn instead.
+                if attempt == 0 and emitted_chars == 0:
+                    await asyncio.sleep(0.3)
+                    continue
+                break
+            except Exception as exc:  # pragma: no cover - defensive
+                last_error = f"{type(exc).__name__}: {exc}"
+                break
+
+        elapsed_ms = (time.perf_counter() - started) * 1000.0
+        self._record_tokens(tokens)
+        if last_error:
+            logger.error(f"[Gemini] stream failed after {elapsed_ms:.0f}ms: {last_error}")
+            yield StreamChunk(error=last_error, final=True, latency_ms=elapsed_ms)
+            return
+        logger.info(
+            f"[Gemini] stream done in {elapsed_ms:.0f}ms first_text={first_text_ms:.0f}ms "
+            f"chars={emitted_chars} tokens={tokens} "
+            f"tool_calls={[call.name for call in calls]} finish={finish_reason}"
+        )
+        yield StreamChunk(
+            function_calls=calls,
+            finish_reason=finish_reason,
+            tokens=tokens,
+            final=True,
+            latency_ms=elapsed_ms,
+            first_text_ms=first_text_ms,
+        )
+
 
 _MARKDOWN_CHARS = "*_#`>|"
+
+
+def sanitize_stream_delta(text: str) -> str:
+    """Strip markup from one streamed delta, preserving word boundaries.
+
+    Args:
+        text: Raw model delta.
+
+    Returns:
+        The delta with markdown removed and internal whitespace collapsed, but
+        its leading and trailing space kept when the model produced one.
+    """
+    if not text:
+        return ""
+    cleaned = text.replace("\u2019", "'").replace("\u2014", ",").replace("\u2013", ",")
+    cleaned = cleaned.replace("**", "").replace("__", "")
+    for char in _MARKDOWN_CHARS:
+        cleaned = cleaned.replace(char, "")
+    cleaned = cleaned.replace("\n", " ")
+    leading = " " if cleaned[:1].isspace() else ""
+    trailing = " " if cleaned[-1:].isspace() else ""
+    core = " ".join(cleaned.split())
+    if not core:
+        return " " if (leading or trailing) else ""
+    return f"{leading}{core}{trailing}"
 
 
 def sanitize_spoken_text(text: str) -> str:
