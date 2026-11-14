@@ -64,21 +64,66 @@ export async function POST(req: Request) {
     const body = (await req.json().catch(() => ({}))) as TokenRequest;
     const roomName =
       body.room_name || `emma-room-${Math.random().toString(36).slice(2, 9)}`;
-
     const firstName = body.caller?.firstName || "Caller";
-    const identity = `caller-${Math.random().toString(36).slice(2, 9)}`;
 
+    // 1. If an external backend gateway (e.g. Render) is available and not localhost, forward to it
+    const remoteGateway =
+      process.env.RENDER_GATEWAY_URL ||
+      process.env.VOICE_AGENT_URL ||
+      process.env.NEXT_PUBLIC_VOICE_GATEWAY_HTTP ||
+      "https://voiceassistant-406s.onrender.com";
+
+    const isRemote =
+      remoteGateway &&
+      !remoteGateway.includes("localhost") &&
+      !remoteGateway.includes("127.0.0.1");
+
+    if (isRemote) {
+      try {
+        const remoteUrl = `${remoteGateway.replace(/\/+$/, "")}/api/voice/token`;
+        console.log(`[Token API] Forwarding call token request to Render: ${remoteUrl}`);
+        const agentRes = await fetch(remoteUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...body, room_name: roomName }),
+        });
+
+        if (agentRes.ok) {
+          const data = await agentRes.json();
+          return NextResponse.json(data);
+        } else {
+          const errData = await agentRes.json().catch(() => ({}));
+          console.warn(
+            `[Token API] Render gateway responded with status ${agentRes.status}:`,
+            errData,
+          );
+          // If remote gateway failed with a specific detail (e.g. missing API keys), propagate it
+          if (errData?.detail || errData?.error) {
+            return NextResponse.json(
+              { error: errData.detail || errData.error },
+              { status: agentRes.status },
+            );
+          }
+        }
+      } catch (proxyError) {
+        console.error("[Token API] Failed to reach Render voice gateway:", proxyError);
+      }
+    }
+
+    // 2. Local token generation (for local development or if Render is bypassed)
+    const identity = `caller-${Math.random().toString(36).slice(2, 9)}`;
     const apiKey =
       process.env.LIVEKIT_API_KEY ||
       process.env.NEXT_PUBLIC_LIVEKIT_API_KEY ||
       "emma_local";
-    // A signing secret must come from the environment. Falling back to a value
-    // in the source tree would make every checkout share one room secret.
     const apiSecret = process.env.LIVEKIT_API_SECRET;
     if (!apiSecret) {
       console.error("[Token API] LIVEKIT_API_SECRET is not configured");
       return NextResponse.json(
-        { error: "LIVEKIT_API_SECRET is not configured on the server" },
+        {
+          error:
+            "LIVEKIT_API_SECRET is not configured on the server, and Render gateway was unavailable.",
+        },
         { status: 500 },
       );
     }
@@ -94,32 +139,6 @@ export async function POST(req: Request) {
       name: firstName,
       roomName,
     });
-
-    // If an external backend gateway (e.g. Render) is configured, forward to it
-    const remoteGateway =
-      process.env.RENDER_GATEWAY_URL ||
-      process.env.VOICE_AGENT_URL;
-
-    if (remoteGateway) {
-      try {
-        const remoteUrl = `${remoteGateway.replace(/\/+$/, "")}/api/voice/token`;
-        console.log(`[Token API] Forwarding token and agent request to Render: ${remoteUrl}`);
-        const agentRes = await fetch(remoteUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-
-        if (agentRes.ok) {
-          const data = await agentRes.json();
-          return NextResponse.json(data);
-        } else {
-          console.warn(`[Token API] Render gateway responded with status ${agentRes.status}`);
-        }
-      } catch (proxyError) {
-        console.error("[Token API] Failed to reach Render voice gateway:", proxyError);
-      }
-    }
 
     // Start the EMMA agent for this room if running locally.
     const projectRoot = path.resolve(process.cwd());

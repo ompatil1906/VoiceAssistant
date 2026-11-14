@@ -6,3 +6,8 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
+[build.environment]
+  NEXT_PUBLIC_VOICE_GATEWAY_HTTP = "https://voiceassistant-406s.onrender.com"
+  RENDER_GATEWAY_URL = "https://voiceassistant-406s.onrender.com"
+
+
