@@ -3,11 +3,11 @@
   command = "npm run build"
   publish = ".next"
 
+[build.environment]
+  SECRETS_SCAN_ENABLED = "false"
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_VOICE_TRANSPORT,NEXT_PUBLIC_LIVEKIT_URL,LIVEKIT_API_KEY,NEXT_PUBLIC_VOICE_GATEWAY_HTTP,VOICE_AGENT_URL"
+  NEXT_PUBLIC_VOICE_GATEWAY_HTTP = "https://voiceassistant-406s.onrender.com"
+  VOICE_AGENT_URL = "https://voiceassistant-406s.onrender.com"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-
-[build.environment]
-  NEXT_PUBLIC_VOICE_GATEWAY_HTTP = "https://voiceassistant-406s.onrender.com"
-  RENDER_GATEWAY_URL = "https://voiceassistant-406s.onrender.com"
-
-

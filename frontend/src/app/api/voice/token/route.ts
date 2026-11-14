@@ -64,14 +64,12 @@ export async function POST(req: Request) {
     const body = (await req.json().catch(() => ({}))) as TokenRequest;
     const roomName =
       body.room_name || `emma-room-${Math.random().toString(36).slice(2, 9)}`;
-    const firstName = body.caller?.firstName || "Caller";
 
-    // 1. If an external backend gateway (e.g. Render) is available and not localhost, forward to it
+    // If an external backend gateway (e.g. Render) is configured, forward to it first
     const remoteGateway =
       process.env.RENDER_GATEWAY_URL ||
       process.env.VOICE_AGENT_URL ||
-      process.env.NEXT_PUBLIC_VOICE_GATEWAY_HTTP ||
-      "https://voiceassistant-406s.onrender.com";
+      process.env.NEXT_PUBLIC_VOICE_GATEWAY_HTTP;
 
     const isRemote =
       remoteGateway &&
@@ -81,7 +79,7 @@ export async function POST(req: Request) {
     if (isRemote) {
       try {
         const remoteUrl = `${remoteGateway.replace(/\/+$/, "")}/api/voice/token`;
-        console.log(`[Token API] Forwarding call token request to Render: ${remoteUrl}`);
+        console.log(`[Token API] Forwarding token and agent request to Render: ${remoteUrl}`);
         const agentRes = await fetch(remoteUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -93,11 +91,7 @@ export async function POST(req: Request) {
           return NextResponse.json(data);
         } else {
           const errData = await agentRes.json().catch(() => ({}));
-          console.warn(
-            `[Token API] Render gateway responded with status ${agentRes.status}:`,
-            errData,
-          );
-          // If remote gateway failed with a specific detail (e.g. missing API keys), propagate it
+          console.warn(`[Token API] Render gateway responded with status ${agentRes.status}:`, errData);
           if (errData?.detail || errData?.error) {
             return NextResponse.json(
               { error: errData.detail || errData.error },
@@ -110,27 +104,27 @@ export async function POST(req: Request) {
       }
     }
 
-    // 2. Local token generation (for local development or if Render is bypassed)
+    const firstName = body.caller?.firstName || "Caller";
     const identity = `caller-${Math.random().toString(36).slice(2, 9)}`;
+
     const apiKey =
       process.env.LIVEKIT_API_KEY ||
       process.env.NEXT_PUBLIC_LIVEKIT_API_KEY ||
-      "emma_local";
+      "";
+    // A signing secret must come from the environment. Falling back to a value
+    // in the source tree would make every checkout share one room secret.
     const apiSecret = process.env.LIVEKIT_API_SECRET;
     if (!apiSecret) {
       console.error("[Token API] LIVEKIT_API_SECRET is not configured");
       return NextResponse.json(
-        {
-          error:
-            "LIVEKIT_API_SECRET is not configured on the server, and Render gateway was unavailable.",
-        },
+        { error: "LIVEKIT_API_SECRET is not configured on the server" },
         { status: 500 },
       );
     }
     const livekitUrl =
       process.env.NEXT_PUBLIC_LIVEKIT_URL ||
       process.env.LIVEKIT_URL ||
-      "ws://127.0.0.1:7880";
+      "";
 
     const token = createLiveKitJwt({
       apiKey,

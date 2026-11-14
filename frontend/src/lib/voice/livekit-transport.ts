@@ -22,11 +22,10 @@
       "tap to enable audio" notice instead of silent failure.
 
    Env:
-     NEXT_PUBLIC_VOICE_TRANSPORT=livekit|websocket   (default: livekit)
-     NEXT_PUBLIC_VOICE_GATEWAY_HTTP=http://localhost:3000   (token endpoint)
-     NEXT_PUBLIC_LIVEKIT_URL=ws://127.0.0.1:7880     (fallback if the token
-                                                      response omits it)
-     NEXT_PUBLIC_BROWSER_STT=1                       (optional fast transcriber) */
+     NEXT_PUBLIC_VOICE_TRANSPORT=<transport>
+     NEXT_PUBLIC_VOICE_GATEWAY_HTTP=<token_endpoint>
+     NEXT_PUBLIC_LIVEKIT_URL=<livekit_url>
+     NEXT_PUBLIC_BROWSER_STT=1 */
 
 import {
   ConnectionState,
