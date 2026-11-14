@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: emma-voice-backend
+    runtime: python
+    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt && pip install -e ."
+    startCommand: "uvicorn scripts.run_server:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: EMMA_DATA_MODE
+        value: approved
+      - key: EMMA_ALLOW_PAID
+        value: "true"
+      - key: EMMA_ALLOW_TRIAL
+        value: "true"

@@ -26,7 +26,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+/lib/
+!frontend/src/lib/
 # Pipecat UI snapshot vendored into the CLI templates has a lib/ of its own
 !src/pipecat/cli/templates/client/_pipecat_ui/src/lib/
 lib64/

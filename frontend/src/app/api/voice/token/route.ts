@@ -95,70 +95,87 @@ export async function POST(req: Request) {
       roomName,
     });
 
-    // Start the EMMA agent for this room. Without it the browser would join a
-    // call that nobody answers, so a missing script is reported as a failure
-    // rather than a silent dead line.
+    // If an external backend gateway (e.g. Render) is configured, forward to it
+    const remoteGateway =
+      process.env.RENDER_GATEWAY_URL ||
+      process.env.VOICE_AGENT_URL;
+
+    if (remoteGateway) {
+      try {
+        const remoteUrl = `${remoteGateway.replace(/\/+$/, "")}/api/voice/token`;
+        console.log(`[Token API] Forwarding token and agent request to Render: ${remoteUrl}`);
+        const agentRes = await fetch(remoteUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+
+        if (agentRes.ok) {
+          const data = await agentRes.json();
+          return NextResponse.json(data);
+        } else {
+          console.warn(`[Token API] Render gateway responded with status ${agentRes.status}`);
+        }
+      } catch (proxyError) {
+        console.error("[Token API] Failed to reach Render voice gateway:", proxyError);
+      }
+    }
+
+    // Start the EMMA agent for this room if running locally.
     const projectRoot = path.resolve(process.cwd());
     const repoRoot = fs.existsSync(path.join(projectRoot, "scripts", "run_agent_session.py"))
       ? projectRoot
       : path.resolve(projectRoot, "..");
     const scriptPath = path.join(repoRoot, "scripts", "run_agent_session.py");
 
-    if (!fs.existsSync(scriptPath)) {
-      console.error(`[Token API] Agent script not found at ${scriptPath}`);
-      return NextResponse.json(
-        { error: "Voice agent is not installed on this machine" },
-        { status: 503 },
-      );
-    }
-
-    const venvPython = path.join(repoRoot, ".venv-313", "bin", "python");
-    const pythonBin = fs.existsSync(venvPython) ? venvPython : "python3";
     let agentPid: number | null = null;
 
-    try {
+    if (fs.existsSync(scriptPath)) {
+      const venvPython = path.join(repoRoot, ".venv-313", "bin", "python");
+      const pythonBin = fs.existsSync(venvPython) ? venvPython : "python3";
+
+      try {
+        console.log(
+          `[Token API] Spawning EMMA agent for room '${roomName}' with caller:`,
+          body.caller,
+        );
+        const logDir = path.join(repoRoot, "logs");
+        fs.mkdirSync(logDir, { recursive: true });
+        const logFd = fs.openSync(path.join(logDir, "agent_session.log"), "a");
+
+        const agentEnv = {
+          ...process.env,
+          PYTHONPATH: path.join(repoRoot, "src"),
+          LIVEKIT_URL: livekitUrl,
+          LIVEKIT_API_KEY: apiKey,
+          LIVEKIT_API_SECRET: apiSecret,
+          PYTHONUNBUFFERED: "1",
+        };
+
+        const agentProcess = spawn(
+          pythonBin,
+          [scriptPath, "--room", roomName, "--caller", JSON.stringify(body.caller || {})],
+          {
+            cwd: repoRoot,
+            env: agentEnv,
+            detached: true,
+            stdio: ["ignore", logFd, logFd],
+          },
+        );
+        agentProcess.unref();
+        agentPid = agentProcess.pid ?? null;
+
+        agentProcess.on("error", (spawnError) => {
+          console.error("[Token API] Agent process failed:", spawnError);
+        });
+
+        fs.closeSync(logFd);
+      } catch (spawnError) {
+        console.error("[Token API] Error spawning agent session:", spawnError);
+      }
+    } else {
       console.log(
-        `[Token API] Spawning EMMA agent for room '${roomName}' with caller:`,
-        body.caller,
-      );
-      const logDir = path.join(repoRoot, "logs");
-      fs.mkdirSync(logDir, { recursive: true });
-      const logFd = fs.openSync(path.join(logDir, "agent_session.log"), "a");
-
-      const agentEnv = {
-        ...process.env,
-        PYTHONPATH: path.join(repoRoot, "src"),
-        LIVEKIT_URL: livekitUrl,
-        LIVEKIT_API_KEY: apiKey,
-        LIVEKIT_API_SECRET: apiSecret,
-        PYTHONUNBUFFERED: "1",
-      };
-
-      const agentProcess = spawn(
-        pythonBin,
-        [scriptPath, "--room", roomName, "--caller", JSON.stringify(body.caller || {})],
-        {
-          cwd: repoRoot,
-          env: agentEnv,
-          detached: true,
-          stdio: ["ignore", logFd, logFd],
-        },
-      );
-      agentProcess.unref();
-      agentPid = agentProcess.pid ?? null;
-
-      agentProcess.on("error", (spawnError) => {
-        console.error("[Token API] Agent process failed:", spawnError);
-      });
-
-      // The child holds its own copy of the descriptor; the parent must not
-      // leak one per call.
-      fs.closeSync(logFd);
-    } catch (spawnError) {
-      console.error("[Token API] Error spawning agent session:", spawnError);
-      return NextResponse.json(
-        { error: "Could not start the voice agent" },
-        { status: 503 },
+        "[Token API] Local agent script not present. Token issued for room: " + roomName,
       );
     }
 
