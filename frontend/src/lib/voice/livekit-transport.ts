@@ -53,6 +53,15 @@ const ASSISTANT_STATES: Record<string, VoiceState> = {
   speaking: "speaking",
 };
 
+// Every stage of the join gets a deadline. A sleeping gateway or an unanswered
+// microphone prompt must not leave the caller on an unexplained spinner.
+const TOKEN_TIMEOUT_MS = 12_000;
+// Retry budget: a hosted gateway that was asleep answers once it has booted,
+// which takes far longer than the first attempt's fast-fail deadline.
+const TOKEN_RETRY_TIMEOUT_MS = 45_000;
+const ROOM_CONNECT_TIMEOUT_MS = 20_000;
+const MIC_TIMEOUT_MS = 20_000;
+
 const BARGE_IN_LEVEL = 0.5;
 // React within ~180 ms of sustained caller energy, after a short grace period
 // that lets echo cancellation settle on EMMA's first syllable.
@@ -95,6 +104,29 @@ function httpToWs(url: string): string {
   return url.replace(/^http/i, "ws").replace(/\/$/, "");
 }
 
+function trimUrl(url: string): string {
+  return url.replace(/\/+$/, "");
+}
+
+/** Fail a join stage that never settles, so the UI cannot wait forever. */
+function withDeadline<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(new Error(`${label} did not complete within ${Math.round(ms / 1000)}s`));
+    }, ms);
+    work.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (cause: unknown) => {
+        window.clearTimeout(timer);
+        reject(cause);
+      },
+    );
+  });
+}
+
 interface BrowserRecognitionWindow extends Window {
   webkitSpeechRecognition?: new () => unknown;
   SpeechRecognition?: new () => unknown;
@@ -125,6 +157,10 @@ export function createLiveKitTransport(
 
   // Optional browser transcriber (disabled by default — see the header note).
   let recognition: { stop(): void; start(): void } | null = null;
+
+  // A failed join also tears the room down; only a disconnect after a
+  // successful join means the call ended normally.
+  let joined = false;
 
   const audioElements = new Set<HTMLMediaElement>();
   let bargeInMuteTimer: number | null = null;
@@ -452,40 +488,103 @@ export function createLiveKitTransport(
     audioElements.clear();
   };
 
+  /** Announce a stage only when it is slow, so a fast join stays quiet. */
+  const slowStageNotice = (text: string, delayMs = 1_500) => {
+    const timer = window.setTimeout(() => {
+      if (active) notice(text);
+    }, delayMs);
+    return () => window.clearTimeout(timer);
+  };
+
   const start = (session: VoiceSessionContext) => {
     ctx = session;
     if (active) return;
     active = true;
+    joined = false;
     setState("connecting");
 
     void (async () => {
       try {
-        const response = await fetch(`${gatewayHttpUrl}/api/voice/token`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            room_name: roomName,
-            caller:
-              options.caller ??
-              (callerFirstName ? { firstName: callerFirstName } : undefined),
-          }),
+        // The token endpoint also launches the agent, so it is the first stage
+        // that can stall: a sleeping hosted gateway answers only after its cold
+        // start. Abort and retry once, with the same room name, so the caller
+        // sees progress instead of an indefinite "connecting".
+        const tokenUrl = `${trimUrl(gatewayHttpUrl)}/api/voice/token`;
+        const tokenBody = JSON.stringify({
+          room_name: roomName,
+          caller:
+            options.caller ??
+            (callerFirstName ? { firstName: callerFirstName } : undefined),
         });
 
-        if (!response.ok) {
-          const detail =
-            response.status === 404
-              ? "Gateway has no LiveKit token endpoint"
-              : `Gateway refused the call token (HTTP ${response.status})`;
-          throw new Error(detail);
+        let token: { token?: string; livekit_url?: string } | null = null;
+        let lastCause: unknown = null;
+        const budgets = [TOKEN_TIMEOUT_MS, TOKEN_RETRY_TIMEOUT_MS];
+
+        const stopContactNotice = slowStageNotice("Contacting the EMMA gateway…");
+
+        for (let attempt = 0; attempt < budgets.length && active; attempt += 1) {
+          if (attempt > 0) {
+            notice("The voice gateway is still starting up — retrying…");
+          }
+          const controller = new AbortController();
+          const timer = window.setTimeout(
+            () => controller.abort(),
+            budgets[attempt],
+          );
+          try {
+            const response = await fetch(tokenUrl, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: tokenBody,
+              signal: controller.signal,
+            });
+
+            if (!response.ok) {
+              // A definitive answer (bad secret, no endpoint) will not improve
+              // on retry, so surface it immediately.
+              const detail =
+                response.status === 404
+                  ? "Gateway has no LiveKit token endpoint"
+                  : `Gateway refused the call token (HTTP ${response.status})`;
+              throw new Error(detail);
+            }
+
+            token = (await response.json()) as {
+              token?: string;
+              livekit_url?: string;
+            };
+            break;
+          } catch (cause) {
+            lastCause = cause;
+            const aborted = controller.signal.aborted;
+            if (!aborted) break; // real answer; do not retry
+          } finally {
+            window.clearTimeout(timer);
+          }
         }
 
-        const token = (await response.json()) as {
-          token?: string;
-          livekit_url?: string;
-        };
-        if (!token.token) throw new Error("Gateway returned no room token");
         if (!active) return;
+        if (!token) {
+          stopContactNotice();
+          const host = trimUrl(gatewayHttpUrl);
+          const timedOut =
+            lastCause instanceof Error && lastCause.name === "AbortError";
+          throw new Error(
+            timedOut
+              ? `No answer from the voice gateway at ${host} after ${Math.round(
+                  TOKEN_TIMEOUT_MS / 1000,
+                )}s and ${Math.round(
+                  TOKEN_RETRY_TIMEOUT_MS / 1000,
+                )}s. It may still be waking up — wait a minute and tap Call again.`
+              : `${host} could not be reached (${
+                  lastCause instanceof Error ? lastCause.message : "network error"
+                }). Check the gateway is running, then tap Call again.`,
+          );
+        }
 
+        if (!token.token) throw new Error("Gateway returned no room token");
+        stopContactNotice();
         let url =
           token.livekit_url ??
           options.livekitUrl ??
@@ -538,6 +637,9 @@ export function createLiveKitTransport(
         });
         nextRoom.on(RoomEvent.Disconnected, () => {
           if (!active) return;
+          // The join failed: leave the error to the connect() catch so the
+          // caller sees why instead of the form silently reappearing.
+          if (!joined) return;
           active = false;
           closeLevelMeter();
           clearPlaybackGesture();
@@ -546,7 +648,20 @@ export function createLiveKitTransport(
           emit({ type: "ended", reason: "done" });
         });
 
-        await nextRoom.connect(url, token.token);
+        const stopJoinNotice = slowStageNotice("Joining the LiveKit room…");
+        try {
+          await withDeadline(
+            nextRoom.connect(url, token.token),
+            ROOM_CONNECT_TIMEOUT_MS,
+            `Joining ${url}`,
+          );
+        } catch (cause) {
+          void nextRoom.disconnect();
+          throw cause;
+        } finally {
+          stopJoinNotice();
+        }
+        joined = true;
 
         // Autoplay policy: this runs inside the caller's click gesture chain,
         // so the room is allowed to play the agent's audio track.
@@ -557,18 +672,37 @@ export function createLiveKitTransport(
           enablePlaybackOnGesture();
         }
 
-        await nextRoom.localParticipant.setMicrophoneEnabled(true, {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        });
+        const stopMicNotice = slowStageNotice("Waiting for microphone permission…");
+        let micLive = true;
+        try {
+          await withDeadline(
+            nextRoom.localParticipant.setMicrophoneEnabled(true, {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            }),
+            MIC_TIMEOUT_MS,
+            "The microphone",
+          );
+        } catch (cause) {
+          // The line is up and EMMA can speak, so keep the call. Say plainly
+          // that the caller cannot be heard yet and how to fix it.
+          micLive = false;
+          const reason =
+            cause instanceof Error ? cause.message : "microphone unavailable";
+          notice(
+            `Microphone not started (${reason}). Allow microphone access for this site, then start the call again.`,
+          );
+        } finally {
+          stopMicNotice();
+        }
 
         if (nextRoom.state === ConnectionState.Disconnected) return;
 
-        startLevelMeter();
+        if (micLive) startLevelMeter();
         startSpeechRecognition();
         setState("listening");
-        notice("Joined the LiveKit room — streaming microphone over WebRTC");
+        if (micLive) notice("Joined the LiveKit room — streaming microphone over WebRTC");
       } catch (cause) {
         if (!active) return;
         active = false;
@@ -576,6 +710,7 @@ export function createLiveKitTransport(
         clearPlaybackGesture();
         clearAudioElements();
         room = null;
+        joined = false;
         const message =
           cause instanceof Error ? cause.message : "Could not join the call";
         emit({ type: "error", message });
@@ -599,6 +734,7 @@ export function createLiveKitTransport(
         .catch(() => undefined);
     }
     active = false;
+    joined = false;
     closeLevelMeter();
     clearPlaybackGesture();
     clearAudioElements();

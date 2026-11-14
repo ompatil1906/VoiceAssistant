@@ -258,6 +258,26 @@ export function useVoiceSession() {
     }
   }, []);
 
+  // Wake a sleeping hosted gateway (e.g. a free-tier Render service) while the
+  // caller is still filling the intake form, so the token request does not have
+  // to absorb a 30–60 s cold start after the click.
+  useEffect(() => {
+    if (LIVE_TRANSPORT !== "livekit") return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 20_000);
+    void fetch(`${GATEWAY_HTTP.replace(/\/+$/, "")}/health`, {
+      mode: "no-cors",
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .catch(() => undefined)
+      .finally(() => window.clearTimeout(timer));
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, []);
+
   useEffect(() => {
     if (!active) return;
 
