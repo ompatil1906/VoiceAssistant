@@ -63,6 +63,13 @@ function nextErrorId(): string {
 }
 
 function upsertLine(prev: TranscriptLine[], line: TranscriptLine) {
+  const existing = prev.findIndex((entry) => entry.id === line.id);
+  if (existing >= 0) {
+    const next = [...prev];
+    next[existing] = line;
+    return next;
+  }
+
   const partialIndex = prev.findIndex((entry) => entry.kind === "partial");
 
   if (line.kind === "partial" || line.kind === "final") {
@@ -74,6 +81,18 @@ function upsertLine(prev: TranscriptLine[], line: TranscriptLine) {
   }
 
   return [...prev, line];
+}
+
+/** A streamed line updates one feed entry instead of piling up words. */
+function upsertFeed(prev: VoiceFeedEntry[], entry: VoiceFeedEntry) {
+  const key = `${entry.role}:${entry.id}`;
+  const existing = prev.findIndex((item) => `${item.role}:${item.id}` === key);
+  if (existing >= 0) {
+    const next = [...prev];
+    next[existing] = entry;
+    return next;
+  }
+  return appendFeed(prev, entry);
 }
 
 function appendFeed(prev: VoiceFeedEntry[], entry: VoiceFeedEntry) {
@@ -174,7 +193,7 @@ export function useVoiceSession() {
             );
           } else if (event.line.kind === "agent") {
             setFeed((prev) =>
-              appendFeed(prev, {
+              upsertFeed(prev, {
                 id: event.line.id,
                 role: "agent",
                 text: event.line.text,

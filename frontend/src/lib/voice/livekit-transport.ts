@@ -78,6 +78,7 @@ const BROWSER_STT_ENABLED =
 interface ControlMessage {
   event?: string;
   kind?: string;
+  id?: string;
   text?: string;
   state?: string;
 }
@@ -163,6 +164,8 @@ export function createLiveKitTransport(
   let joined = false;
 
   const audioElements = new Set<HTMLMediaElement>();
+  // Assistant lines streamed word by word: line id → text received so far.
+  const assistantDrafts = new Map<string, string>();
   let bargeInMuteTimer: number | null = null;
   let unwirePlaybackGesture: (() => void) | null = null;
 
@@ -398,6 +401,37 @@ export function createLiveKitTransport(
         });
         return;
       }
+      case "assistant-start": {
+        if (typeof message.id !== "string") return;
+        assistantDrafts.set(message.id, "");
+        return;
+      }
+      case "assistant-delta": {
+        if (typeof message.id !== "string" || !message.text) return;
+        const previous = assistantDrafts.get(message.id) ?? "";
+        const text = previous ? `${previous} ${message.text}` : message.text;
+        assistantDrafts.set(message.id, text);
+        emit({
+          type: "transcript",
+          line: { id: message.id, kind: "agent", text, sample: false },
+        });
+        return;
+      }
+      case "assistant-end": {
+        if (typeof message.id !== "string") return;
+        const spoken = assistantDrafts.get(message.id) ?? "";
+        assistantDrafts.delete(message.id);
+        const text =
+          typeof message.text === "string" && message.text.trim()
+            ? message.text
+            : spoken;
+        if (!text.trim()) return;
+        emit({
+          type: "transcript",
+          line: { id: message.id, kind: "agent", text, sample: false },
+        });
+        return;
+      }
       case "assistant": {
         if (typeof message.text !== "string" || !message.text.trim()) return;
         emit({
@@ -501,6 +535,7 @@ export function createLiveKitTransport(
     if (active) return;
     active = true;
     joined = false;
+    assistantDrafts.clear();
     setState("connecting");
 
     void (async () => {
@@ -641,6 +676,7 @@ export function createLiveKitTransport(
           // caller sees why instead of the form silently reappearing.
           if (!joined) return;
           active = false;
+          assistantDrafts.clear();
           closeLevelMeter();
           clearPlaybackGesture();
           clearAudioElements();
@@ -740,6 +776,7 @@ export function createLiveKitTransport(
     clearAudioElements();
     room = null;
     if (current) void current.disconnect();
+    assistantDrafts.clear();
     emit({ type: "ended", reason: "user" });
   };
 

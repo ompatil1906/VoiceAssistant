@@ -23,8 +23,15 @@ Control messages sent to the browser on the reliable data channel:
 
     {"event": "state", "state": "listening" | "thinking" | "speaking"}
     {"event": "transcript", "kind": "partial" | "final", "text": "..."}
-    {"event": "assistant", "text": "..."}
+    {"event": "assistant-start", "id": "a-3"}
+    {"event": "assistant-delta", "id": "a-3", "text": "word ..."}
+    {"event": "assistant-end", "id": "a-3", "text": "whole reply"}
+    {"event": "assistant", "text": "..."}   (single-shot lines)
     {"event": "notice", "text": "..."}
+
+The assistant line is streamed word by word: each ``assistant-delta`` carries
+only the words whose audio has reached the room, so the caller reads the reply
+as it is spoken instead of receiving the finished text afterwards.
 
 The browser may send ``{"event": "barge-in"}``, ``{"event": "end-call"}`` or a
 text turn ``{"event": "user_input", "text": "..."}``.
@@ -70,6 +77,7 @@ from emma.cost.budget import SessionBudget
 from emma.security.redaction import redact
 from emma.services.gemini_client import FunctionCall, GeminiClient
 from emma.services.response_stream import SpeechSink
+from emma.services.spoken_transcript import SpokenTranscript
 from emma.services.streaming_stt import BatchTranscriber, DeepgramStreamingTranscriber
 from emma.services.streaming_tts import (
     DEFAULT_SAMPLE_RATE,
@@ -323,6 +331,9 @@ class EmmaAgent:
         self._ledger = TurnLedger(max_pending=_env_int("EMMA_MAX_PENDING_TURNS", 4))
         self._sink: SpeechSink | None = None
         self._turn_task: asyncio.Task[None] | None = None
+        # The line currently being revealed word by word in the caller's UI.
+        self._transcript: SpokenTranscript | None = None
+        self._transcript_seq = 0
 
         self._turn_worker: asyncio.Task[None] | None = None
         self._stt_pump: asyncio.Task[None] | None = None
@@ -416,8 +427,15 @@ class EmmaAgent:
             )
         await self._set_state("speaking")
 
-    async def _start_sink(self, generation: int) -> SpeechSink:
-        """Create the response output pipeline for one generation."""
+    async def _start_sink(
+        self, generation: int, transcript: SpokenTranscript | None = None
+    ) -> SpeechSink:
+        """Create the response output pipeline for one generation.
+
+        Args:
+            generation: Turn generation the audio belongs to.
+            transcript: Line that receives words as their audio is published.
+        """
 
         def is_current(candidate: int) -> bool:
             return candidate == self._ledger.generation and not self.stop_event.is_set()
@@ -427,10 +445,21 @@ class EmmaAgent:
             self._publish_pcm,
             is_current=is_current,
             on_first_audio=self._on_first_audio,
+            on_words=transcript.push if transcript is not None else None,
+            bytes_per_second=SAMPLE_RATE * NUM_CHANNELS * 2,
         )
         self._sink = sink
         await sink.start(generation)
         return sink
+
+    def _new_transcript(self) -> SpokenTranscript:
+        """Open one assistant line for the reply about to be spoken."""
+        self._transcript_seq += 1
+        transcript = SpokenTranscript(
+            self.send_control, line_id=f"a-{self._transcript_seq}"
+        )
+        self._transcript = transcript
+        return transcript
 
     async def speak(self, text: str, *, purpose: str = "assistant") -> bool:
         """Speak ``text`` sentence by sentence, honouring barge-in.
@@ -452,11 +481,10 @@ class EmmaAgent:
         self._barge_ms = 0.0
         self.recent_assistant_text = clean
 
-        if purpose != "filler":
-            await self.send_control({"event": "assistant", "text": clean})
+        transcript = self._new_transcript() if purpose != "filler" else None
 
         started = time.monotonic()
-        sink = await self._start_sink(generation)
+        sink = await self._start_sink(generation, transcript)
         completed = False
         try:
             await sink.feed(clean)
@@ -465,6 +493,11 @@ class EmmaAgent:
         finally:
             if self._sink is sink:
                 self._sink = None
+            if transcript is not None:
+                if self._transcript is transcript:
+                    self._transcript = None
+                # Only the words that actually played are claimed as spoken.
+                await transcript.close(clean if completed else None)
             self.speaking = False
             # Let the room's echo tail decay before the transcriber listens.
             # After a barge-in the caller is already speaking, so resume at once.
@@ -502,6 +535,11 @@ class EmmaAgent:
         self._sink = None
         if sink is not None:
             sink.abort()
+        transcript = self._transcript
+        self._transcript = None
+        if transcript is not None:
+            # The caller heard part of the line; report exactly that part.
+            asyncio.create_task(transcript.close(), name="transcript-close")
         task = self._turn_task
         self._turn_task = None
         if task is not None and not task.done():
@@ -636,7 +674,8 @@ class EmmaAgent:
         self.contents.append({"role": "user", "parts": [{"text": turn.text}]})
         self._trim_contents()
 
-        sink = await self._start_sink(generation)
+        transcript = self._new_transcript()
+        sink = await self._start_sink(generation, transcript)
         reply_text = ""
         tool_names: list[str] = []
         first_text_ms = 0.0
@@ -656,6 +695,9 @@ class EmmaAgent:
 
         if not self._ledger.is_current(turn.turn_id, generation):
             log("[Agent] turn superseded by a barge-in; stale reply not committed")
+            if self._transcript is transcript:
+                self._transcript = None
+            await transcript.close(None)
             return
 
         if reply_text:
@@ -663,8 +705,9 @@ class EmmaAgent:
             # a cancelled generation must not leave half an answer behind.
             self.contents.append({"role": "model", "parts": [{"text": reply_text}]})
             self.recent_assistant_text = reply_text
-        if reply_text:
-            await self.send_control({"event": "assistant", "text": reply_text})
+        if self._transcript is transcript:
+            self._transcript = None
+        await transcript.close(reply_text or None)
         self._ledger.complete_response(turn, generation)
         self._stt_resume_at = time.monotonic() + 0.2
         await self._set_state("listening")

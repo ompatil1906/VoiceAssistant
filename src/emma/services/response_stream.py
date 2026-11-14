@@ -38,6 +38,11 @@ except ImportError:  # pragma: no cover - loguru is a runtime dependency
 SENTINEL_AUDIO = b""
 SENTINEL_SENTENCE = ""
 
+# The word reveal follows the published audio, so it needs the audio clock.
+# 24 kHz mono PCM16 is 48 000 bytes per second.
+PCM_BYTES_PER_SECOND = 48_000
+# Fallback cadence while a sentence's true duration is still being synthesised.
+DEFAULT_WORD_SECONDS = 0.32
 
 class SpeechSink:
     """Pipeline model text through synthesis into published PCM frames.
@@ -50,8 +55,13 @@ class SpeechSink:
             to :meth:`start`.
         on_first_audio: Called once, immediately before the first chunk is
             published. Used to move the UI into the speaking state.
+        on_words: Called with the words that the audio being published has
+            reached, so a transcript can render word by word in step with the
+            voice instead of appearing after the reply ends.
         sentence_queue_size: Sentences waiting for synthesis.
         audio_queue_size: Synthesised chunks waiting for playback.
+        bytes_per_second: PCM byte rate, used to turn chunks into audio time.
+        word_seconds: Cadence assumed before a sentence's real duration is known.
     """
 
     def __init__(
@@ -61,8 +71,11 @@ class SpeechSink:
         *,
         is_current: Callable[[int], bool] | None = None,
         on_first_audio: Callable[[], Awaitable[None]] | None = None,
+        on_words: Callable[[list[str]], Awaitable[None]] | None = None,
         sentence_queue_size: int = 8,
         audio_queue_size: int = 96,
+        bytes_per_second: int = PCM_BYTES_PER_SECOND,
+        word_seconds: float = DEFAULT_WORD_SECONDS,
     ) -> None:
         """Configure the provider chain, the publisher and the queue bounds."""
         from emma.services.turn_manager import SentenceChunker
@@ -71,8 +84,11 @@ class SpeechSink:
         self._publish = publish
         self._is_current = is_current or (lambda generation: True)
         self._on_first_audio = on_first_audio
+        self._on_words = on_words
+        self._bytes_per_second = max(1, bytes_per_second)
+        self._word_seconds = word_seconds
         self._sentences: asyncio.Queue[str] = asyncio.Queue(maxsize=sentence_queue_size)
-        self._audio: asyncio.Queue[bytes] = asyncio.Queue(maxsize=audio_queue_size)
+        self._audio: asyncio.Queue[tuple[int, bytes]] = asyncio.Queue(maxsize=audio_queue_size)
         self._chunker = SentenceChunker()
         self._generation = 0
         self._tasks: list[asyncio.Task[None]] = []
@@ -80,6 +96,9 @@ class SpeechSink:
         self._first_audio_at = 0.0
         self._chunks_published = 0
         self._synth_done = False
+        # Sentence text and measured audio duration, indexed by synthesis order.
+        self._texts: list[str] = []
+        self._spans: list[float | None] = []
 
     @property
     def generation(self) -> int:
@@ -108,6 +127,8 @@ class SpeechSink:
         self._generation = generation
         self._aborted = False
         self._synth_done = False
+        self._texts = []
+        self._spans = []
         self._tasks = [
             asyncio.create_task(self._synthesize(), name="speech-synth"),
             asyncio.create_task(self._play(), name="speech-play"),
@@ -151,7 +172,7 @@ class SpeechSink:
         self._tasks = []
 
     async def _synthesize(self) -> None:
-        """Consume sentences and produce audio chunks."""
+        """Consume sentences and produce audio chunks tagged with their sentence."""
         generation = self._generation
         try:
             while True:
@@ -160,38 +181,89 @@ class SpeechSink:
                     return
                 if not self._allowed(generation):
                     continue
+                index = len(self._texts)
+                self._texts.append(sentence)
+                self._spans.append(None)
+                seconds = 0.0
                 async for chunk in self._tts.stream(sentence):
                     if not self._allowed(generation):
                         return
                     if not chunk:
                         continue
-                    await self._audio.put(chunk)
+                    seconds += len(chunk) / self._bytes_per_second
+                    await self._audio.put((index, chunk))
+                # Playback may already have started; a real duration beats the
+                # fallback cadence for the words still to come.
+                self._spans[index] = seconds
         finally:
             self._synth_done = True
             try:
-                self._audio.put_nowait(SENTINEL_AUDIO)
+                self._audio.put_nowait((-1, SENTINEL_AUDIO))
             except asyncio.QueueFull:
                 # _play notices _synth_done once it has drained the queue.
                 pass
 
+    async def _reveal(self, index: int, clock: float, revealed: int) -> int:
+        """Send the words the published audio has reached for one sentence.
+
+        Args:
+            index: Sentence index in synthesis order.
+            clock: Seconds of this sentence's audio published so far.
+            revealed: How many of its words the UI already has.
+
+        Returns:
+            The new number of words revealed.
+        """
+        if self._on_words is None or index < 0 or index >= len(self._texts):
+            return revealed
+        words = self._texts[index].split()
+        if not words:
+            return revealed
+        total = self._spans[index] or (len(words) * self._word_seconds)
+        if clock >= total:
+            target = len(words)
+        else:
+            target = int(clock / total * len(words))
+        if target <= revealed:
+            return revealed
+        try:
+            await self._on_words(words[revealed:target])
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # a UI failure must never stall the voice
+            logger.warning(f"[Speech] word reveal failed: {type(exc).__name__}: {exc}")
+        return target
+
     async def _play(self) -> None:
         """Publish audio chunks in order until synthesis ends or is superseded."""
         generation = self._generation
+        index = -1
+        clock = 0.0
+        revealed = 0
         while True:
             try:
-                chunk = await asyncio.wait_for(self._audio.get(), timeout=0.25)
+                item = await asyncio.wait_for(self._audio.get(), timeout=0.25)
             except TimeoutError:
                 if self._synth_done and self._audio.empty():
                     return
                 if not self._allowed(generation):
                     return
                 continue
+            chunk_index, chunk = item
             if chunk == SENTINEL_AUDIO:
+                await self._reveal(index, float("inf"), revealed)
                 return
             if not self._allowed(generation):
                 # Drain without publishing: a superseded response must not put
                 # a single additional frame on the wire.
                 continue
+            if chunk_index != index:
+                # The previous sentence finished playing: everything it had
+                # left is now spoken.
+                await self._reveal(index, float("inf"), revealed)
+                index = chunk_index
+                clock = 0.0
+                revealed = 0
             if not self._first_audio_at:
                 self._first_audio_at = asyncio.get_running_loop().time()
                 if self._on_first_audio is not None:
@@ -204,6 +276,8 @@ class SpeechSink:
             except Exception as exc:  # the room may have closed mid-reply
                 logger.warning(f"[Speech] publish failed: {type(exc).__name__}: {exc}")
                 return
+            clock += len(chunk) / self._bytes_per_second
+            revealed = await self._reveal(index, clock, revealed)
 
     def abort(self) -> None:
         """Stop publishing immediately.
@@ -215,6 +289,8 @@ class SpeechSink:
         for task in self._tasks:
             task.cancel()
         self._tasks = []
+        self._texts = []
+        self._spans = []
         while not self._audio.empty():
             try:
                 self._audio.get_nowait()

@@ -230,3 +230,108 @@ async def test_empty_text_finishes_without_audio():
     await sink.finish()
     assert recorder.chunks == []
     assert tts.sentences == []
+
+
+class ToneTTS:
+    """Synthesiser producing fixed-size PCM chunks for one sentence at a time."""
+
+    def __init__(self, chunks: int = 4, chunk_bytes: int = 4800) -> None:
+        self.chunks = chunks
+        self.chunk_bytes = chunk_bytes
+
+    async def stream(self, text: str):
+        del text
+        for _ in range(self.chunks):
+            await asyncio.sleep(0)
+            yield b"\x00" * self.chunk_bytes
+
+
+class WordLog:
+    """Records the words the sink says are being voiced."""
+
+    def __init__(self) -> None:
+        self.words: list[tuple[float, str]] = []
+        self._loop = asyncio.get_event_loop()
+
+    async def __call__(self, words: list[str]) -> None:
+        for word in words:
+            self.words.append((self._loop.time(), word))
+
+    @property
+    def text(self) -> str:
+        return " ".join(word for _, word in self.words)
+
+
+@pytest.mark.asyncio
+async def test_words_are_revealed_as_their_audio_is_published():
+    """The transcript follows the voice: no word appears before its audio."""
+    # 4 words over 4 chunks of 4800 bytes = 0.4 s of 24 kHz PCM16.
+    tts = ToneTTS(chunks=4, chunk_bytes=4800)
+    recorder = Recorder(delay=0.02)
+    words = WordLog()
+    sink = SpeechSink(tts, recorder, on_words=words)
+
+    await sink.start(0)
+    await sink.feed("Book me in for Friday. ")
+    await sink.finish()
+
+    assert sink.chunks_published == 4
+    assert words.text == "Book me in for Friday."
+    # The first chunk covers one quarter of the sentence: at most one word, and
+    # never the last one, may be revealed at that point.
+    assert len(words.words) > 1
+    first_word_at = words.words[0][0]
+    assert first_word_at >= recorder.times[0]
+
+
+@pytest.mark.asyncio
+async def test_no_words_are_revealed_after_a_barge_in():
+    """A superseded response stops revealing at the abort."""
+    tts = ToneTTS(chunks=20, chunk_bytes=4800)
+    recorder = Recorder(delay=0.005)
+    words = WordLog()
+    sink = SpeechSink(tts, recorder, on_words=words)
+
+    await sink.start(0)
+    await sink.feed("A long sentence that the caller interrupts before it ends. ")
+    while sink.chunks_published < 2:
+        await asyncio.sleep(0.001)
+    sink.abort()
+
+    revealed = len(words.words)
+    await asyncio.sleep(0.05)
+    assert len(words.words) == revealed
+    assert revealed < len("A long sentence that the caller interrupts before it ends.".split())
+
+
+@pytest.mark.asyncio
+async def test_each_sentence_reveals_all_of_its_words_once():
+    """Long replies do not lose or repeat words across sentence boundaries."""
+    tts = ToneTTS(chunks=2, chunk_bytes=9600)
+    recorder = Recorder()
+    words = WordLog()
+    sink = SpeechSink(tts, recorder, on_words=words)
+
+    await sink.start(0)
+    await sink.feed("The clinic opens at eight. It closes at six. ")
+    await sink.finish()
+
+    assert words.text == "The clinic opens at eight. It closes at six."
+
+
+@pytest.mark.asyncio
+async def test_a_failing_word_sink_never_stalls_playback():
+    """The UI is optional; audio keeps flowing when a reveal raises."""
+
+    async def broken(_words: list[str]) -> None:
+        raise RuntimeError("ui gone")
+
+    tts = ToneTTS(chunks=2, chunk_bytes=9600)
+    recorder = Recorder()
+    sink = SpeechSink(tts, recorder, on_words=broken)
+
+    await sink.start(0)
+    await sink.feed("This sentence still has to play out loud. ")
+    await sink.finish()
+
+    assert sink.chunks_published == 2

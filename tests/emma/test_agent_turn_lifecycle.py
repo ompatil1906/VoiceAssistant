@@ -273,8 +273,12 @@ async def test_one_spoken_sentence_produces_exactly_one_response(agent_module):
         finals = [message["text"] for message in agent.room.events("transcript") if message["kind"] == "final"]
         assert finals == ["Hi I wanted to ask about your opening hours on a weekday please?"]
         assert agent.caller_turns == 1
-        assistant_lines = agent.room.events("assistant")
+        assistant_lines = agent.room.events("assistant-end")
         assert len(assistant_lines) == 1
+        # The line was streamed word by word before it was closed.
+        assert agent.room.events("assistant-start")
+        assert agent.room.events("assistant-delta")
+        assert assistant_lines[0]["text"].startswith("We are open from eight")
         assert agent.audio_source.frames
     finally:
         await stop_agent(agent, pump, worker)
@@ -418,7 +422,7 @@ async def test_a_tool_round_speaks_the_grounded_confirmation_directly(agent_modu
         assert "020 7946 0011" in agent.recent_assistant_text
         assert any(
             "020 7946 0011" in message.get("text", "")
-            for message in agent.room.events("assistant")
+            for message in agent.room.events("assistant-end")
         )
     finally:
         await stop_agent(agent, worker)
