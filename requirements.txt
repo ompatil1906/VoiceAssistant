@@ -1,6 +1,7 @@
 # Production dependencies for EMMA Voice Gateway (Render deployment)
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
+httpx>=0.27.0
 livekit>=1.0.13
 livekit-api>=1.0.5
 google-genai>=2.25.0
@@ -16,3 +17,4 @@ pyyaml>=6.0
 openpyxl>=3.1.0
 requests>=2.31.0
 setuptools>=68.0.0
+audioop-lts~=0.2.1; python_version>='3.13'

@@ -9,6 +9,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
+      - key: PYTHONPATH
+        value: src:scripts
       - key: LIVEKIT_URL
         sync: false
       - key: LIVEKIT_API_KEY
@@ -27,3 +29,4 @@ services:
         value: "true"
       - key: EMMA_ALLOW_TRIAL
         value: "true"
+

@@ -67,7 +67,7 @@ docs/api/_build/
 docs/api/api
 
 # uv
-.python-version
+# .python-version (tracked for Render deployment)
 
 # Coverage
 .coverage
