@@ -233,6 +233,7 @@ export function VoiceStage() {
                 demo={mode === "demo"}
                 micLevel={micLevel}
                 outputLevel={outputLevel}
+                feed={feed}
                 onToggleMute={toggleMute}
                 onEnd={end}
               />

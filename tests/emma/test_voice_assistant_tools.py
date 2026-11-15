@@ -24,6 +24,11 @@ from emma.services.voice_assistant import (
     similarity,
 )
 
+# Fixed reference time so a hard-coded appointment date never slides into the
+# past as the wall clock advances.
+NOW = datetime(2026, 11, 11, 16, 0)
+
+
 CALLER = CallerProfile(
     first_name="Sam",
     last_name="Patel",
@@ -49,6 +54,7 @@ def _tools(tmp_path, *, record_calls: bool = True) -> AssistantTools:
         appointment_ledger=tmp_path / "appointments.json",
         excel_path=tmp_path / "calls.xlsx",
         record_calls=record_calls,
+        now=NOW,
     )
 
 

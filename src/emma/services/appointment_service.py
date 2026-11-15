@@ -553,7 +553,9 @@ def book_appointment(
             "message": "That date has already passed. Which upcoming day works for you?",
             "alternatives": [
                 f"{day.isoformat()} {slot}"
-                for slot in next_available_slots(day, count=2, schedule=schedule, ledger_path=path)
+                for slot in next_available_slots(
+                    day, count=2, schedule=schedule, ledger_path=path, now=now
+                )
             ],
         }
 
@@ -577,7 +579,7 @@ def book_appointment(
                 f"{_spoken_time(closes)}. What time in that window suits you?"
             ),
             "alternatives": _spoken_slots(
-                next_available_slots(day, count=3, schedule=schedule, ledger_path=path)
+                next_available_slots(day, count=3, schedule=schedule, ledger_path=path, now=now)
             ),
         }
 

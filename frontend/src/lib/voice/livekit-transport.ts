@@ -166,8 +166,14 @@ export function createLiveKitTransport(
   const audioElements = new Set<HTMLMediaElement>();
   // Assistant lines streamed word by word: line id → text received so far.
   const assistantDrafts = new Map<string, string>();
+  let currentCallerLineId: string | null = null;
   let bargeInMuteTimer: number | null = null;
   let unwirePlaybackGesture: (() => void) | null = null;
+  // A soft ringback tone fills the gateway/agent startup, which is the only
+  // part of the join the caller cannot see. It stops the moment EMMA publishes.
+  let ringbackContext: AudioContext | null = null;
+  let ringbackSource: AudioBufferSourceNode | null = null;
+  let ringbackTimer: number | null = null;
 
   /** Drop audio the browser has already buffered for an obsolete reply. */
   const muteBufferedPlayback = () => {
@@ -395,13 +401,21 @@ export function createLiveKitTransport(
         if (typeof message.text !== "string" || !message.text.trim()) return;
         const kind: TranscriptKind =
           message.kind === "partial" ? "partial" : "final";
+        // Partials for one utterance reuse an id so the line grows in place
+        // instead of stacking a new paragraph per Deepgram result.
+        const id =
+          typeof message.id === "string" && message.id
+            ? message.id
+            : (currentCallerLineId ??= randomId("t"));
+        if (kind === "final") currentCallerLineId = null;
         emit({
           type: "transcript",
-          line: { id: randomId("t"), kind, text: message.text, sample: false },
+          line: { id, kind, text: message.text, sample: false },
         });
         return;
       }
       case "assistant-start": {
+        stopRingback();
         if (typeof message.id !== "string") return;
         assistantDrafts.set(message.id, "");
         return;
@@ -433,6 +447,7 @@ export function createLiveKitTransport(
         return;
       }
       case "assistant": {
+        stopRingback();
         if (typeof message.text !== "string" || !message.text.trim()) return;
         emit({
           type: "transcript",
@@ -455,6 +470,7 @@ export function createLiveKitTransport(
         if (!mapped) return;
         agentSpeaking = mapped === "speaking";
         if (agentSpeaking) {
+          stopRingback();
           speakingTicks = 0;
           speechTicks = 0;
           unmutePlayback();
@@ -477,6 +493,69 @@ export function createLiveKitTransport(
     }
   };
 
+  /** Stop the waiting tone; safe to call at any stage, including never started. */
+  const stopRingback = () => {
+    if (ringbackTimer !== null) {
+      window.clearTimeout(ringbackTimer);
+      ringbackTimer = null;
+    }
+    try {
+      ringbackSource?.stop();
+    } catch {
+      /* already stopped */
+    }
+    ringbackSource = null;
+    const context = ringbackContext;
+    ringbackContext = null;
+    if (context && context.state !== "closed") void context.close();
+  };
+
+  /** Play a quiet phone ringback while the room and agent come up. */
+  const startRingback = () => {
+    if (ringbackContext) return;
+    try {
+      const Ctor =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext;
+      if (!Ctor) return;
+      const context = new Ctor();
+      void context.resume().catch(() => undefined);
+
+      // One second of the classic 440 + 480 Hz ring, two seconds of silence.
+      const sampleRate = context.sampleRate;
+      const toneSeconds = 1;
+      const buffer = context.createBuffer(1, Math.floor(sampleRate * 3), sampleRate);
+      const samples = buffer.getChannelData(0);
+      const toneSamples = Math.floor(sampleRate * toneSeconds);
+      for (let index = 0; index < toneSamples; index += 1) {
+        const t = index / sampleRate;
+        // Short fades avoid a click at the start and end of each ring.
+        const fade = Math.min(1, t / 0.04, (toneSeconds - t) / 0.05);
+        samples[index] =
+          fade *
+          0.5 *
+          (Math.sin(2 * Math.PI * 440 * t) + Math.sin(2 * Math.PI * 480 * t));
+      }
+
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      const gain = context.createGain();
+      // Quiet enough to sit under speech and never drive the microphone.
+      gain.gain.value = 0.045;
+      source.connect(gain).connect(context.destination);
+      source.start();
+
+      ringbackContext = context;
+      ringbackSource = source;
+      // Never ring forever if the join stalls without reporting an error.
+      ringbackTimer = window.setTimeout(stopRingback, 90_000);
+    } catch {
+      /* audio output is optional; notices still explain the wait */
+    }
+  };
+
   /** Let the next tap unblock audio when autoplay policy refuses it. */
   const enablePlaybackOnGesture = () => {
     if (unwirePlaybackGesture) return;
@@ -493,6 +572,8 @@ export function createLiveKitTransport(
   };
 
   const attachRemoteAudio = (track: RemoteTrack) => {
+    // The agent is in the room and about to speak: the waiting tone is over.
+    stopRingback();
     const element = track.attach();
     element.autoplay = true;
     element.setAttribute("playsinline", "true");
@@ -537,6 +618,7 @@ export function createLiveKitTransport(
     joined = false;
     assistantDrafts.clear();
     setState("connecting");
+    startRingback();
 
     void (async () => {
       try {
@@ -677,6 +759,7 @@ export function createLiveKitTransport(
           if (!joined) return;
           active = false;
           assistantDrafts.clear();
+          stopRingback();
           closeLevelMeter();
           clearPlaybackGesture();
           clearAudioElements();
@@ -742,6 +825,7 @@ export function createLiveKitTransport(
       } catch (cause) {
         if (!active) return;
         active = false;
+        stopRingback();
         closeLevelMeter();
         clearPlaybackGesture();
         clearAudioElements();
@@ -771,6 +855,7 @@ export function createLiveKitTransport(
     }
     active = false;
     joined = false;
+    stopRingback();
     closeLevelMeter();
     clearPlaybackGesture();
     clearAudioElements();

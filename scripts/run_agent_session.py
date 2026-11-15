@@ -315,6 +315,10 @@ class EmmaAgent:
         self.recent_assistant_text = ""
         self.recent_user_texts: list[str] = []
         self.last_transcript_partial = ""
+        # Stable id for the caller line: partials update one paragraph in the
+        # UI instead of appending a new fragment for every Deepgram result.
+        self._partial_line_id: str | None = None
+        self._caller_line_seq = 0
 
         self.speaking = False
         self.thinking = False
@@ -455,9 +459,7 @@ class EmmaAgent:
     def _new_transcript(self) -> SpokenTranscript:
         """Open one assistant line for the reply about to be spoken."""
         self._transcript_seq += 1
-        transcript = SpokenTranscript(
-            self.send_control, line_id=f"a-{self._transcript_seq}"
-        )
+        transcript = SpokenTranscript(self.send_control, line_id=f"a-{self._transcript_seq}")
         self._transcript = transcript
         return transcript
 
@@ -612,9 +614,7 @@ class EmmaAgent:
             log(f"[Agent] ignoring {turn.source} transcript during speech grace period")
             return False
 
-        registered = self._ledger.register(
-            turn, text_dedupe=turn.source != "deepgram-stream"
-        )
+        registered = self._ledger.register(turn, text_dedupe=turn.source != "deepgram-stream")
         if registered is None:
             log(f"[Agent] ignoring duplicate transcript from {turn.source}")
             return False
@@ -667,7 +667,11 @@ class EmmaAgent:
             f"[Agent] caller turn {turn.turn_id} ({turn.source}, {turn.reason}, "
             f"segments={turn.segment_count}): {turn.text}"
         )
-        await self.send_control({"event": "transcript", "kind": "final", "text": turn.text})
+        line_id = self._partial_line_id
+        self._partial_line_id = None
+        await self.send_control(
+            {"event": "transcript", "kind": "final", "text": turn.text, "id": line_id}
+        )
 
         self.thinking = True
         await self._set_state("thinking")
@@ -680,9 +684,7 @@ class EmmaAgent:
         tool_names: list[str] = []
         first_text_ms = 0.0
         try:
-            reply_text, tool_names, first_text_ms = await self._respond(
-                turn, generation, sink
-            )
+            reply_text, tool_names, first_text_ms = await self._respond(turn, generation, sink)
         finally:
             self.thinking = False
             if not self._ledger.is_current(turn.turn_id, generation):
@@ -847,8 +849,7 @@ class EmmaAgent:
 
             if failure and not round_parts:
                 fallback = (
-                    "I'm having trouble reaching the practice system. "
-                    "Could you say that again?"
+                    "I'm having trouble reaching the practice system. Could you say that again?"
                 )
                 reply_parts.append(f" {fallback}")
                 await sink.feed(f" {fallback}")
@@ -974,9 +975,7 @@ class EmmaAgent:
                         BARGE_IN_MIN_RMS,
                         min(BARGE_IN_MAX_RMS, self._noise_rms * BARGE_IN_NOISE_FACTOR),
                     )
-                    confirm_ms = (
-                        BARGE_IN_MIN_MS if self.speaking else BARGE_IN_THINKING_MIN_MS
-                    )
+                    confirm_ms = BARGE_IN_MIN_MS if self.speaking else BARGE_IN_THINKING_MIN_MS
                     grace_ms = BARGE_IN_GRACE_MS if self.speaking else 0.0
                     if since_speech > grace_ms and rms > threshold:
                         self._barge_ms += duration_ms
@@ -996,7 +995,9 @@ class EmmaAgent:
                                 keep = INPUT_SAMPLE_RATE * 2 * BARGE_IN_PREROLL_MS // 1000
                                 if len(prebuffer) > keep:
                                     del prebuffer[: len(prebuffer) - keep]
-                                log(f"[STT] flushing {len(prebuffer)} buffered bytes after barge-in")
+                                log(
+                                    f"[STT] flushing {len(prebuffer)} buffered bytes after barge-in"
+                                )
                                 await self.stt.send(bytes(prebuffer))
                                 prebuffer.clear()
                     elif rms < SPEECH_RMS:
@@ -1106,9 +1107,7 @@ class EmmaAgent:
                                 batch_buffer.clear()
                                 utterance_ms = 0.0
                                 asyncio.create_task(
-                                    self._transcribe_and_enqueue(
-                                        audio, speech_end_at=speech_end
-                                    ),
+                                    self._transcribe_and_enqueue(audio, speech_end_at=speech_end),
                                     name="batch-stt",
                                 )
                             else:
@@ -1197,9 +1196,17 @@ class EmmaAgent:
                 if event.text and event.text != self.last_transcript_partial:
                     self.last_transcript_partial = event.text
                     self._stt_partials += 1
+                    if self._partial_line_id is None:
+                        self._caller_line_seq += 1
+                        self._partial_line_id = f"u-{self._caller_line_seq}"
                     self._assembler.on_partial(event, now=time.monotonic())
                     await self.send_control(
-                        {"event": "transcript", "kind": "partial", "text": event.text}
+                        {
+                            "event": "transcript",
+                            "kind": "partial",
+                            "text": event.text,
+                            "id": self._partial_line_id,
+                        }
                     )
             elif event.type == "final":
                 self.last_transcript_partial = ""

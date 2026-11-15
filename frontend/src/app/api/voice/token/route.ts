@@ -59,7 +59,13 @@ function createLiveKitJwt({
   return `${b64Header}.${b64Payload}.${signature}`;
 }
 
+/** Warm the route (and prove it is compiled) without spawning an agent. */
+export async function GET() {
+  return NextResponse.json({ status: "ready" });
+}
+
 export async function POST(req: Request) {
+  const startedAt = Date.now();
   try {
     const body = (await req.json().catch(() => ({}))) as TokenRequest;
     const roomName =
@@ -191,6 +197,11 @@ export async function POST(req: Request) {
         "[Token API] Local agent script not present. Token issued for room: " + roomName,
       );
     }
+
+    console.log(
+      `[Token API] ${roomName} ready in ${Date.now() - startedAt}ms` +
+        (agentPid ? ` (agent pid ${agentPid})` : " (no local agent)"),
+    );
 
     return NextResponse.json({
       token,

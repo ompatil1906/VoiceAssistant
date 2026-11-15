@@ -182,9 +182,12 @@ export function useVoiceSession() {
           return;
         case "transcript":
           setLines((prev) => upsertLine(prev, event.line));
-          if (event.line.kind === "final") {
+          if (event.line.kind === "partial" || event.line.kind === "final") {
+            // Show the caller's words while they speak: a final can arrive a
+            // second after the utterance, which reads as "no transcription".
+            // Both kinds share a line id, so the final replaces the partial.
             setFeed((prev) =>
-              appendFeed(prev, {
+              upsertFeed(prev, {
                 id: event.line.id,
                 role: "caller",
                 text: event.line.text,
@@ -291,6 +294,14 @@ export function useVoiceSession() {
     })
       .catch(() => undefined)
       .finally(() => window.clearTimeout(timer));
+    // Also compile the token route in dev before the caller clicks. The first
+    // POST otherwise waits for Next's route compilation, which reads as a slow
+    // gateway and triggers the retry notice.
+    void fetch(`${GATEWAY_HTTP.replace(/\/+$/, "")}/api/voice/token`, {
+      method: "GET",
+      cache: "no-store",
+      signal: controller.signal,
+    }).catch(() => undefined);
     return () => {
       window.clearTimeout(timer);
       controller.abort();

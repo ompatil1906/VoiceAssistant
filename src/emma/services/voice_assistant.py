@@ -105,6 +105,8 @@ class AssistantTools:
         excel_path: Override for the Excel call record path (tests).
         record_calls: When false, tool execution does not touch the Excel
             ledger. Used by unit tests that only assert on the result.
+        now: Reference time for date parsing and past-date checks. Tests pin
+            it; the running agent leaves it unset and uses the wall clock.
     """
 
     caller: CallerProfile
@@ -113,6 +115,7 @@ class AssistantTools:
     appointment_ledger: Any | None = None
     excel_path: Any | None = None
     record_calls: bool = True
+    now: datetime | None = None
     _recorded_labels: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -292,9 +295,10 @@ class AssistantTools:
         raw_date = str(args.get("appointment_date", "")).strip()
         raw_time = str(args.get("appointment_time", "")).strip()
 
+        now = self.now or datetime.now()
         if not raw_date or not raw_time:
             parsed_date, parsed_time = parse_appointment_request(
-                f"{raw_date} {raw_time}".strip(), datetime.now()
+                f"{raw_date} {raw_time}".strip(), now
             )
             raw_date = raw_date or (parsed_date.isoformat() if parsed_date else "")
             raw_time = raw_time or (parsed_time.strftime("%H:%M") if parsed_time else "")
@@ -323,6 +327,7 @@ class AssistantTools:
             appointment_time=raw_time,
             schedule=self.schedule,
             ledger_path=self.appointment_ledger,
+            now=now,
         )
 
         if result.get("success") and self.record_calls:

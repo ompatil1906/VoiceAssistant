@@ -3,6 +3,7 @@
 import { Mic, MicOff, PhoneOff, TriangleAlert } from "lucide-react";
 
 import type { VoiceCaller, VoiceState } from "@/lib/voice/types";
+import type { VoiceFeedEntry } from "@/components/voice/use-voice-session";
 import { cn } from "@/lib/utils";
 
 const STATE_LABEL: Record<VoiceState, string> = {
@@ -116,6 +117,7 @@ export function PhoneCallScreen({
   demo,
   micLevel,
   outputLevel,
+  feed,
   onToggleMute,
   onEnd,
 }: {
@@ -127,9 +129,14 @@ export function PhoneCallScreen({
   demo: boolean;
   micLevel: number;
   outputLevel: number;
+  feed: VoiceFeedEntry[];
   onToggleMute: () => void;
   onEnd: () => void;
 }) {
+  const caption = [...feed]
+    .reverse()
+    .find((entry) => entry.role === "caller" || entry.role === "agent");
+
   const name = [caller.firstName, caller.lastName]
     .map((part) => part.trim())
     .filter(Boolean)
@@ -199,6 +206,17 @@ export function PhoneCallScreen({
             </div>
           ) : null}
         </dl>
+      ) : null}
+
+      {caption ? (
+        <div className="mt-2 border-t border-white/8 pt-2 text-left" aria-live="polite">
+          <p className="font-mono text-[5.5px] uppercase tracking-[0.16em] text-white/28">
+            {caption.role === "caller" ? "You" : "EMMA"}
+          </p>
+          <p className="mt-0.5 line-clamp-3 text-[7px] leading-[1.45] text-white/60">
+            {caption.text}
+          </p>
+        </div>
       ) : null}
 
       <div className="mt-auto flex items-center justify-center gap-2 pt-3">
