@@ -10,6 +10,7 @@ Provides:
 - GET / and GET /health: Health checks for container orchestration and uptime monitoring.
 - POST /api/voice/token: Generates a LiveKit JWT room token for the caller participant
   and automatically launches the EmmaAgent in the background to join the room and answer the call.
+- GET /api/voice/token: Readiness probe for that route; mints nothing and starts no agent.
 - POST /api/voice/agent/start: Explicitly launches an EmmaAgent session for a room.
 - CORS support enabled for all origins, allowing communication with Netlify-hosted frontends.
 """
@@ -37,10 +38,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from livekit import api
 from pydantic import BaseModel, Field
+from run_agent_session import EmmaAgent, resolve_provider_plan
 
 from emma.config import RuntimeConfig
 from emma.security.redaction import redact
-from run_agent_session import EmmaAgent, resolve_provider_plan
 
 
 def log(msg: str) -> None:
@@ -129,6 +130,19 @@ async def health():
         "active_rooms_count": len(active_agents),
         "rooms": list(active_agents.keys()),
     }
+
+
+@app.get("/api/voice/token")
+async def token_ready():
+    """Answer the browser's token-route readiness probe.
+
+    While the caller fills in the intake form the browser sends one GET to this
+    path to wake the gateway. The Next.js development route handles GET, so the
+    same probe is sent to whatever gateway is configured; on a production
+    deployment it used to reach this POST-only route and log a 405 in the
+    browser console. Answering it here mints no token and starts no agent.
+    """
+    return {"status": "ready", "service": "EMMA Voice Gateway"}
 
 
 @app.post("/api/voice/token")
