@@ -32,7 +32,12 @@ except ImportError:
     import logging
     logger = logging.getLogger("emma.storage")
 
-EXCEL_RECORDS_DIR = Path(os.environ.get("CALL_RECORDS_DIR", "data"))
+# Runtime records live beside the checkout, not beside whatever directory the
+# process happened to be started from. The gateway is launched from the repo
+# root, the frontend spawns the agent with its own cwd, and an operator may run
+# the script from anywhere: all three must append to the same workbook.
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+EXCEL_RECORDS_DIR = Path(os.environ.get("CALL_RECORDS_DIR") or (_REPO_ROOT / "data"))
 EXCEL_RECORDS_PATH = EXCEL_RECORDS_DIR / "call_records.xlsx"
 CSV_RECORDS_PATH = EXCEL_RECORDS_DIR / "call_records.csv"
 

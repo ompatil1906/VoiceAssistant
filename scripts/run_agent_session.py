@@ -49,6 +49,7 @@ import hashlib
 import json
 import os
 import re
+import signal
 import sys
 import time
 from dataclasses import dataclass, field
@@ -70,6 +71,7 @@ except ImportError:  # pragma: no cover - dotenv is a developer convenience
     pass
 
 import numpy as np
+# pyrefly: ignore[missing-import]
 from livekit import api, rtc
 
 from emma.config import RuntimeConfig
@@ -326,6 +328,11 @@ class EmmaAgent:
         self.greeting_started_at = 0.0
         self.speech_started_at = 0.0
         self.caller_turns = 0
+        # Whether a caller ever reached this session. A call can end without a
+        # transcribed turn (silent microphone, dead air); it is still a call the
+        # clinic needs in the ledger.
+        self.caller_joined = False
+        self._record_written = False
         self.stop_event = asyncio.Event()
 
         # Turn assembly and lifecycle. The assembler decides when a spoken
@@ -626,6 +633,7 @@ class EmmaAgent:
             self.interrupt("new caller turn")
         self.recent_user_texts.append(registered.text)
         self.recent_user_texts = self.recent_user_texts[-8:]
+        self.caller_joined = True
         self._ledger.enqueue(registered)
         return True
 
@@ -905,6 +913,7 @@ class EmmaAgent:
             log("[Agent] caller audio already being consumed; ignoring duplicate track")
             return
         self._audio_task = asyncio.current_task()
+        self.caller_joined = True
         # A muted microphone can unsubscribe and republish the track. Reuse the
         # open STT socket (and its single event pump) rather than starting a
         # second reader on the same connection.
@@ -1256,6 +1265,7 @@ class EmmaAgent:
         def _on_join(participant: rtc.RemoteParticipant) -> None:
             log(f"[Agent] participant joined: {participant.identity}")
             if participant.identity.startswith("caller"):
+                self.caller_joined = True
                 asyncio.create_task(self.ensure_greeting(), name="greeting")
 
         @self.room.on("track_subscribed")
@@ -1312,6 +1322,7 @@ class EmmaAgent:
             participant.identity.startswith("caller")
             for participant in self.room.remote_participants.values()
         ):
+            self.caller_joined = True
             asyncio.create_task(self.ensure_greeting(), name="greeting")
 
         watchdog = asyncio.create_task(self._watchdog(), name="watchdog")
@@ -1346,6 +1357,11 @@ class EmmaAgent:
     async def _shutdown(self) -> None:
         """Stop every task and close every provider exactly once."""
         self.stop_event.set()
+        # Write the record before the first await. The gateway cancels this
+        # session on redeploy or sleep, and a cancelled coroutine never runs
+        # code that sits after an await point — which is how end-of-call
+        # records went missing.
+        self._write_call_record()
         if self._sink is not None:
             self._sink.abort()
             self._sink = None
@@ -1373,19 +1389,30 @@ class EmmaAgent:
         except Exception:
             pass
 
-        if self.caller_turns > 0:
-            summary = self._closing_summary()
-            try:
-                self.tools.record_fallback_summary(summary)
-            except Exception as exc:
-                warn(f"could not write the call record: {type(exc).__name__}: {exc}")
-
         log(f"[Agent] closing call after {self.caller_turns} caller turns")
         if self.room is not None:
             try:
                 await self.room.disconnect()
             except Exception:
                 pass
+
+    def _write_call_record(self) -> None:
+        """Persist the end-of-call row, at most once per session.
+
+        Runs synchronously so a cancellation or process shutdown cannot skip
+        it. A tool that already recorded the outcome owns the row; otherwise a
+        closing summary is written. Calls that never produced a transcript,
+        but did have a caller, are recorded too.
+        """
+        if self._record_written:
+            return
+        self._record_written = True
+        if not (self.caller_joined or self.caller_turns > 0):
+            return
+        try:
+            self.tools.record_fallback_summary(self._closing_summary())
+        except Exception as exc:
+            warn(f"could not write the call record: {type(exc).__name__}: {exc}")
 
     def _closing_summary(self) -> str:
         if self.caller_turns == 0:
@@ -1461,6 +1488,22 @@ def _jsonable(value: Any) -> Any:
         return json.loads(json.dumps(value, default=str))
 
 
+async def _run_until_stopped(agent: EmmaAgent) -> None:
+    """Run the session, turning SIGTERM/SIGINT into a graceful call ending.
+
+    A deployment redeploy or a closed terminal sends a signal, not a LiveKit
+    disconnect. Handling it by setting ``stop_event`` lets ``run()`` reach
+    ``_shutdown`` and write the call record instead of dying mid-call.
+    """
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            loop.add_signal_handler(sig, agent.stop_event.set)
+        except (NotImplementedError, RuntimeError, ValueError):
+            pass
+    await agent.run()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run an EMMA voice agent session")
     parser.add_argument("--room", required=True, help="LiveKit room name")
@@ -1487,7 +1530,7 @@ def main() -> int:
         return 1
 
     try:
-        asyncio.run(agent.run())
+        asyncio.run(_run_until_stopped(agent))
     except KeyboardInterrupt:
         pass
     except Exception as exc:

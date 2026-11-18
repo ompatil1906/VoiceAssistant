@@ -83,7 +83,9 @@ whisker_setup.py
 *.ses
 :memory:.ses
 # Generated call records and prescriptions
+# Runtime data holds patient details and is never committed.
 data/*.xlsx
 data/*.csv
+data/*.json
 data/prescriptions/*.eml
 

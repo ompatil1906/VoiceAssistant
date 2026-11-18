@@ -20,9 +20,11 @@ conversation-level guarantees without a network call:
 from __future__ import annotations
 
 import asyncio
+import csv
 import importlib.util
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -390,6 +392,69 @@ async def test_streamed_reply_starts_speaking_before_the_model_finishes(agent_mo
 def tts_sentences(agent) -> list[str]:
     """Sentences the fake synthesiser was asked to speak."""
     return list(agent.tts.sentences)
+
+
+@pytest.mark.asyncio
+async def test_a_connected_call_without_a_transcript_is_still_recorded(agent_module, tmp_path):
+    """A silent microphone must not hide the call from the clinic ledger."""
+    agent = await build_agent(agent_module, llm=FakeLLM([[]]))
+    agent.tools.excel_path = tmp_path / "calls.xlsx"
+    agent.caller_joined = True
+
+    await agent._shutdown()
+
+    with (tmp_path / "calls.csv").open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    assert len(rows) == 1
+    assert rows[0]["First Name"] == "Sam"
+    assert rows[0]["Status"] == "Completed"
+    assert "did not speak" in rows[0]["Call Summary"]
+
+
+@pytest.mark.asyncio
+async def test_the_end_of_call_record_is_written_before_providers_shut_down(agent_module, tmp_path):
+    """A cancelled provider close must not take the record with it."""
+    agent = await build_agent(agent_module, llm=FakeLLM([[]]))
+    agent.tools.excel_path = tmp_path / "calls.xlsx"
+    agent.caller_joined = True
+    agent.caller_turns = 1
+    agent.recent_user_texts = ["I need a repeat prescription"]
+
+    async def cancelled() -> None:
+        raise asyncio.CancelledError
+
+    agent.stt.close = cancelled  # type: ignore[method-assign]
+
+    with pytest.raises(asyncio.CancelledError):
+        await agent._shutdown()
+
+    with (tmp_path / "calls.csv").open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    assert len(rows) == 1
+    assert "repeat prescription" in rows[0]["Call Summary"]
+
+
+@pytest.mark.asyncio
+async def test_shutdown_records_once_when_a_tool_already_wrote_the_outcome(agent_module, tmp_path):
+    """The booking row owns the call; shutdown must not append a duplicate."""
+    agent = await build_agent(agent_module, llm=FakeLLM([[]]))
+    agent.tools.excel_path = tmp_path / "calls.xlsx"
+    agent.tools.appointment_ledger = tmp_path / "appointments.json"
+    agent.tools.now = datetime(2026, 11, 11, 16, 0)
+    agent.caller_joined = True
+    agent.caller_turns = 1
+
+    result, _ = agent.tools.book_appointment(
+        {"appointment_date": "2026-11-12", "appointment_time": "15:00"}
+    )
+    assert result["success"] is True
+
+    await agent._shutdown()
+
+    with (tmp_path / "calls.csv").open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    assert len(rows) == 1
+    assert rows[0]["Request Label"] == "Appointment Booking"
 
 
 @pytest.mark.asyncio
